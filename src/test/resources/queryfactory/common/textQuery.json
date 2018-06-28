@@ -1,0 +1,25 @@
+{
+  "bool" : {
+    "must" : [
+      {
+        "multi_match" : {
+          "query" : "prueba",
+          "fields" : [
+            "name^1.0"
+          ],
+          "type" : "best_fields",
+          "operator" : "OR",
+          "slop" : 0,
+          "prefix_length" : 0,
+          "max_expansions" : 50,
+          "lenient" : false,
+          "zero_terms_query" : "NONE",
+          "boost" : 1.0
+        }
+      }
+    ],
+    "disable_coord" : false,
+    "adjust_pure_negative" : true,
+    "boost" : 1.0
+  }
+}
