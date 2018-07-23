@@ -13,7 +13,7 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient;
 
 import es.redmic.exception.common.ExceptionType;
 import es.redmic.exception.common.InternalException;
@@ -25,6 +25,7 @@ public class EsClientProvider {
 	private List<String> addresses;
 	private Integer port;
 	private String clusterName;
+	private String xpackSecurityUser;
 
 	protected static Logger logger = LogManager.getLogger();
 
@@ -32,6 +33,7 @@ public class EsClientProvider {
 		this.addresses = config.getAddresses();
 		this.port = config.getPort();
 		this.clusterName = config.getClusterName();
+		this.xpackSecurityUser = config.getXpackSecurityUser();
 	}
 
 	public TransportClient getClient() {
@@ -43,9 +45,16 @@ public class EsClientProvider {
 	@PostConstruct
 	private void connect() {
 
-		Settings settings = Settings.builder().put("cluster.name", this.clusterName).build();
+		// @formatter:off
 
-		client = new PreBuiltTransportClient(settings);
+		Settings settings = Settings.builder()
+				.put("cluster.name", this.clusterName)
+				.put("xpack.security.user", this.xpackSecurityUser)
+				.build();
+
+		// @formatter:on
+
+		client = new PreBuiltXPackTransportClient(settings);
 
 		for (String address : addresses) {
 			try {
