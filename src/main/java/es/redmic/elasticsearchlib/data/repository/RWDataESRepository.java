@@ -6,6 +6,7 @@ import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.rest.RestStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -78,6 +79,26 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 		} catch (InterruptedException | ExecutionException e) {
 			LOGGER.debug("Error modificando el item con id " + modelToIndex.getId() + " en " + getIndex()[0] + " "
 					+ getType()[0]);
+			return new EventApplicationResult(ExceptionType.ES_UPDATE_DOCUMENT.toString());
+		}
+
+		return new EventApplicationResult(true);
+	}
+
+	public EventApplicationResult update(String id, XContentBuilder doc) {
+
+		UpdateRequest updateRequest = new UpdateRequest();
+		updateRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+		updateRequest.index(getIndex()[0]);
+		updateRequest.type(getType()[0]);
+		updateRequest.id(id);
+		updateRequest.doc(doc);
+		updateRequest.fetchSource(true);
+
+		try {
+			ESProvider.getClient().update(updateRequest).get();
+		} catch (Exception e) {
+			LOGGER.debug("Error modificando el item con id " + id + " en " + getIndex()[0] + " " + getType()[0]);
 			return new EventApplicationResult(ExceptionType.ES_UPDATE_DOCUMENT.toString());
 		}
 
