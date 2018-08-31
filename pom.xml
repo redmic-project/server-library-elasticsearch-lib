@@ -52,17 +52,9 @@
 		
 		<dependency>
 			<groupId>org.elasticsearch.client</groupId>
-			<artifactId>transport</artifactId>
-		</dependency>
-		
-		<dependency>
-			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>x-pack-transport</artifactId>
 			<version>${elasticsearch.x-pack.version}</version>
 		</dependency>
-		
-		
-		
 		
 		<!-- Other -->
 		
