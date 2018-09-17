@@ -175,73 +175,23 @@ public abstract class DataQueryUtils extends SimpleQueryUtils {
 	}
 
 	@SuppressWarnings("serial")
-	public static BoolQueryBuilder getItemsQuery(String id, String parentId, List<Long> accessibilityIds) {
+	public static BoolQueryBuilder getItemsQuery(String id) {
 
 		ArrayList<String> ids = new ArrayList<String>() {
 			{
 				add(id);
 			}
 		};
-		return getItemsQuery(ids, parentId, accessibilityIds);
+		return getItemsQuery(ids);
 	}
 
-	public static BoolQueryBuilder getItemsQuery(List<String> ids, String parentId, List<Long> accessibilityIds) {
+	public static BoolQueryBuilder getItemsQuery(List<String> ids) {
 
 		BoolQueryBuilder query = QueryBuilders.boolQuery();
-
-		if (accessibilityIds != null && accessibilityIds.size() > 0 && parentId != null)
-			query.must(getQueryOnParent(parentId, accessibilityIds));
-
-		else if (accessibilityIds != null && accessibilityIds.size() > 0 && parentId == null)
-			query.must(getAccessibilityQueryOnParent(accessibilityIds));
-
-		else if (parentId != null)
-			query.must(getQueryByParent(parentId));
 
 		query.must(QueryBuilders.idsQuery().addIds(ids.toArray(new String[ids.size()])));
 
 		return query;
-	}
-
-	public static QueryBuilder getHierarchicalQuery(DataQueryDTO queryDTO, String parentId) {
-
-		List<Long> accessibilityIds = queryDTO.getAccessibilityIds();
-
-		if ((accessibilityIds == null || accessibilityIds.size() == 0) && parentId == null)
-			return null;
-
-		if (accessibilityIds == null || accessibilityIds.size() == 0)
-			return getQueryByParent(parentId);
-
-		if (parentId == null)
-			return getAccessibilityQueryOnParent(accessibilityIds);
-
-		return getQueryOnParent(parentId, accessibilityIds);
-	}
-
-	public static QueryBuilder getQueryOnParent(String parentId, List<Long> accessibilityIds) {
-
-		if (parentId == null || accessibilityIds == null || accessibilityIds.size() == 0)
-			return null;
-
-		return JoinQueryBuilders.hasParentQuery(PARENT, QueryBuilders.boolQuery()
-				.must(QueryBuilders.termQuery("id", parentId)).must(getAccessibilityQuery(accessibilityIds)), true);
-	}
-
-	public static QueryBuilder getQueryByParent(String parentId) {
-
-		if (parentId == null)
-			return null;
-
-		return JoinQueryBuilders.hasParentQuery(PARENT, QueryBuilders.termQuery("id", parentId), true);
-	}
-
-	public static QueryBuilder getAccessibilityQueryOnParent(List<Long> accessibilityIds) {
-
-		if (accessibilityIds == null || accessibilityIds.size() == 0)
-			return null;
-
-		return JoinQueryBuilders.hasParentQuery(PARENT, getAccessibilityQuery(accessibilityIds), true);
 	}
 
 	public static QueryBuilder getDocumentQueryOnParent(String documentId) {
