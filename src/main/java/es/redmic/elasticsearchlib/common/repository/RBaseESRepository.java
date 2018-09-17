@@ -684,11 +684,6 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		return (W) ElasticSearchUtils.parseMGetHit(result, wrapperType);
 	}
 
-	@SuppressWarnings("unchecked")
-	protected Map<String, Object> convertTModelToSource(TModel modelToIndex) {
-		return objectMapper.convertValue(modelToIndex, Map.class);
-	}
-
 	public String[] getIndex() {
 		return INDEX;
 	}

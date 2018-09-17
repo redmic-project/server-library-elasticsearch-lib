@@ -3,31 +3,132 @@ package es.redmic.elasticsearchlib.common.utils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import es.redmic.elasticsearchlib.config.EsClientProvider;
+import es.redmic.exception.common.ExceptionType;
 import es.redmic.exception.elasticsearch.ESUpdateException;
+import es.redmic.models.es.common.dto.EventApplicationResult;
 import es.redmic.models.es.common.model.BaseES;
 
 @Component
 public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
+	protected static Logger logger = LogManager.getLogger();
+
 	@Autowired
 	EsClientProvider ESProvider;
 
+	@Autowired
+	protected ObjectMapper objectMapper;
+
 	protected static String SCRIPT_ENGINE = "groovy";
+
+	public EventApplicationResult save(String index, String type, TModel model, String id) {
+
+		// @formatter:off
+
+		IndexResponse result = ESProvider.getClient()
+			.prepareIndex(index, type)
+			.setSource(convertTModelToSource(model))
+			.setId(id)
+			.setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+				.execute()
+					.actionGet();
+
+		// @formatter:on
+
+		if (!result.status().equals(RestStatus.CREATED)) {
+			logger.debug("Error indexando en " + index + " " + type);
+			return new EventApplicationResult(ExceptionType.ES_INDEX_DOCUMENT.toString());
+		}
+
+		return new EventApplicationResult(true);
+	}
+
+	public EventApplicationResult update(String index, String type, TModel model, String id) {
+
+		UpdateRequest updateRequest = new UpdateRequest();
+		updateRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+		updateRequest.index(index);
+		updateRequest.type(type);
+		updateRequest.id(id);
+		updateRequest.doc(convertTModelToSource(model));
+		updateRequest.fetchSource(true);
+
+		try {
+			ESProvider.getClient().update(updateRequest).get();
+		} catch (InterruptedException | ExecutionException e) {
+			logger.debug("Error modificando el item con id " + id + " en " + index + " " + type);
+			return new EventApplicationResult(ExceptionType.ES_UPDATE_DOCUMENT.toString());
+		}
+
+		return new EventApplicationResult(true);
+	}
+
+	public EventApplicationResult update(String index, String type, String id, XContentBuilder doc) {
+
+		UpdateRequest updateRequest = new UpdateRequest();
+		updateRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+		updateRequest.index(index);
+		updateRequest.type(type);
+		updateRequest.id(id);
+		updateRequest.doc(doc);
+		updateRequest.fetchSource(true);
+
+		try {
+			ESProvider.getClient().update(updateRequest).get();
+		} catch (Exception e) {
+			logger.debug("Error modificando el item con id " + id + " en " + index + " " + type);
+			return new EventApplicationResult(ExceptionType.ES_UPDATE_DOCUMENT.toString());
+		}
+
+		return new EventApplicationResult(true);
+	}
+
+	public EventApplicationResult delete(String index, String type, String id) {
+
+		// @formatter:off
+
+		DeleteResponse result = ESProvider.getClient()
+			.prepareDelete(index, type, id)
+			.setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+				.execute()
+					.actionGet();
+
+		// @formatter:on
+
+		if (!result.status().equals(RestStatus.OK)) {
+			logger.debug("Error borrando el item con id " + id + " en " + index + " " + type);
+			return new EventApplicationResult(ExceptionType.DELETE_ITEM_EXCEPTION.toString());
+		}
+		return new EventApplicationResult(true);
+	}
+
+	@SuppressWarnings("unchecked")
+	protected Map<String, Object> convertTModelToSource(TModel modelToIndex) {
+		return objectMapper.convertValue(modelToIndex, Map.class);
+	}
 
 	public List<UpdateRequest> getUpdateRequest(String[] index, String[] type, String id, Map<String, Object> fields) {
 
