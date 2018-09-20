@@ -4,12 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHitField;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import es.redmic.elasticsearchlib.common.utils.IProcessItemFunction;
-import es.redmic.models.es.geojson.common.model.Feature;
+import es.redmic.models.es.geojson.base.Feature;
 
 public class GeoItemsProcessingFunction<TModel extends Feature<?, ?>> implements IProcessItemFunction<TModel> {
 
@@ -32,11 +31,7 @@ public class GeoItemsProcessingFunction<TModel extends Feature<?, ?>> implements
 
 	private TModel mapper(SearchHit hit) {
 
-		TModel item = objectMapper.convertValue(hit.getSourceAsMap(), this.typeOfTModel);
-		SearchHitField parent = hit.getFields().get("_parent");
-		item.set_parentId(parent.getValue().toString());
-
-		return item;
+		return objectMapper.convertValue(hit.getSourceAsMap(), this.typeOfTModel);
 	}
 
 	@Override
