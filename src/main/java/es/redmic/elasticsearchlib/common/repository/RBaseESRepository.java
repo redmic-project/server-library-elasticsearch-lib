@@ -32,7 +32,6 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.BaseAggregationBuilder;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
-import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
@@ -77,8 +76,6 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	private String[] TYPE;
 
 	protected Integer SUGGESTSIZE = 10;
-	protected String PRETAGS = "<b>";
-	protected String POSTTAGS = "</b>";
 
 	protected Integer MAX_SIZE = 100000;
 
@@ -235,7 +232,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		}
 
 		requestBuilder.setQuery(query).setSize((size == null) ? SUGGESTSIZE : size)
-				.highlighter(getHighlightBuilder(queryDTO.getSuggest().getSearchFields()));
+				.highlighter(ElasticSearchUtils.getHighlightBuilder(queryDTO.getSuggest().getSearchFields()));
 
 		return ElasticSearchUtils.createHighlightResponse(requestBuilder.execute().actionGet());
 	}
@@ -377,7 +374,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		if (queryDTO.getText() != null && (queryDTO.getText().getHighlightFields() == null
 				|| queryDTO.getText().getHighlightFields().length == 0)) {
 
-			requestBuilder.highlighter(getHighlightBuilder(queryDTO.getText().getHighlightFields()));
+			requestBuilder.highlighter(ElasticSearchUtils.getHighlightBuilder(queryDTO.getText().getHighlightFields()));
 		}
 		requestBuilder.setFrom(queryDTO.getFrom());
 		requestBuilder.setSize(getSize(queryDTO, queryBuilder));
@@ -407,20 +404,6 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			return getSort();
 		}
 		return sorts;
-	}
-
-	private HighlightBuilder getHighlightBuilder(String[] highlightFields) {
-
-		HighlightBuilder highlightBuilder = new HighlightBuilder();
-
-		for (String field : highlightFields) {
-			highlightBuilder.field(field);
-		}
-
-		highlightBuilder.preTags(PRETAGS);
-		highlightBuilder.postTags(POSTTAGS);
-
-		return highlightBuilder;
 	}
 
 	protected MultiSearchResponse getMultiFindResponses(List<SearchRequestBuilder> searchs) {
