@@ -13,7 +13,6 @@ import org.elasticsearch.index.query.GeoShapeQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeQueryBuilder;
-import org.elasticsearch.join.query.JoinQueryBuilders;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 
@@ -38,7 +37,6 @@ public abstract class DataQueryUtils extends SimpleQueryUtils {
 			SCRIPT_ENGINE = "groovy",
 			SEARCH_BY_Z_RANGE_SCRIPT = "search-by-z-range",
 			SEARCH_NESTED_BY_Z_RANGE_SCRIPT = "search-nested-by-z-range",
-			PARENT = "activity",
 
 			QFLAG_QUERY_FIELD = "qFlags",
 			VFLAG_QUERY_FIELD = "vFlags",
@@ -189,28 +187,9 @@ public abstract class DataQueryUtils extends SimpleQueryUtils {
 
 		BoolQueryBuilder query = QueryBuilders.boolQuery();
 
-		query.must(QueryBuilders.idsQuery().addIds(ids.toArray(new String[ids.size()])));
+		query.must(QueryBuilders.termsQuery("id", ids.toArray(new String[ids.size()])));
 
 		return query;
-	}
-
-	public static QueryBuilder getDocumentQueryOnParent(String documentId) {
-
-		if (documentId == null)
-			return null;
-
-		List<String> documentIds = new ArrayList<>();
-		documentIds.add(documentId);
-		return getDocumentsQueryOnParent(documentIds);
-	}
-
-	public static QueryBuilder getDocumentsQueryOnParent(List<String> documentIds) {
-
-		if (documentIds == null || documentIds.size() == 0)
-			return null;
-
-		return JoinQueryBuilders.hasParentQuery(PARENT, QueryBuilders.nestedQuery("documents",
-				QueryBuilders.termsQuery("documents.document.id", documentIds), ScoreMode.Avg), true);
 	}
 
 	public static QueryBuilder getAccessibilityQuery(List<Long> accessibilityIds) {
