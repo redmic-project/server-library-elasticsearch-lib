@@ -32,8 +32,7 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 			return checkInsert;
 		}
 
-		return elasticPersistenceUtils.save(getIndex()[0], getType()[0], modelToIndex,
-				(modelToIndex.getId() != null) ? modelToIndex.getId().toString() : null);
+		return elasticPersistenceUtils.save(getIndex()[0], getType()[0], modelToIndex, modelToIndex.getId().toString());
 	}
 
 	@Override

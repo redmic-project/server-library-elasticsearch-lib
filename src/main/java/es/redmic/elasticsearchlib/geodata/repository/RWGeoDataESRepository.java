@@ -7,7 +7,7 @@ import es.redmic.elasticsearchlib.common.repository.IRWBaseESRepository;
 import es.redmic.elasticsearchlib.common.utils.ElasticPersistenceUtils;
 import es.redmic.models.es.common.dto.EventApplicationResult;
 import es.redmic.models.es.common.query.dto.SimpleQueryDTO;
-import es.redmic.models.es.geojson.common.model.Feature;
+import es.redmic.models.es.geojson.base.Feature;
 
 public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQueryDTO extends SimpleQueryDTO>
 		extends RGeoDataESRepository<TModel, TQueryDTO> implements IRWBaseESRepository<TModel> {
@@ -28,7 +28,7 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 			return checkInsert;
 		}
 
-		return elasticPersistenceUtils.save(getIndex()[0], getType()[0], modelToIndex, modelToIndex.getUuid());
+		return elasticPersistenceUtils.save(getIndex()[0], getType()[0], modelToIndex, modelToIndex.getId());
 	}
 
 	@Override
