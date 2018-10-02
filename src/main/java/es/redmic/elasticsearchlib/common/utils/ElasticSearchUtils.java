@@ -29,6 +29,7 @@ import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.BaseAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
@@ -48,6 +49,9 @@ public class ElasticSearchUtils {
 
 	protected final static String SCRIPT_ENGINE = "groovy";
 	protected final static String SUGGESTSUFFIX = ".suggest";
+
+	protected final static String PRETAGS = "<b>";
+	protected final static String POSTTAGS = "</b>";
 
 	@Autowired
 	ObjectMapper jacksonMapper;
@@ -268,5 +272,19 @@ public class ElasticSearchUtils {
 		}
 
 		return suggestFields;
+	}
+
+	public static HighlightBuilder getHighlightBuilder(String[] highlightFields) {
+
+		HighlightBuilder highlightBuilder = new HighlightBuilder();
+
+		for (String field : highlightFields) {
+			highlightBuilder.field(field.contains(SUGGESTSUFFIX) ? field : (field + SUGGESTSUFFIX));
+		}
+
+		highlightBuilder.preTags(PRETAGS);
+		highlightBuilder.postTags(POSTTAGS);
+
+		return highlightBuilder;
 	}
 }

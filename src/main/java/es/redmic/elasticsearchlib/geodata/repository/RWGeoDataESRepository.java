@@ -1,4 +1,4 @@
-package es.redmic.elasticsearchlib.data.repository;
+package es.redmic.elasticsearchlib.geodata.repository;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -6,20 +6,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import es.redmic.elasticsearchlib.common.repository.IRWBaseESRepository;
 import es.redmic.elasticsearchlib.common.utils.ElasticPersistenceUtils;
 import es.redmic.models.es.common.dto.EventApplicationResult;
-import es.redmic.models.es.common.model.BaseES;
 import es.redmic.models.es.common.query.dto.SimpleQueryDTO;
+import es.redmic.models.es.geojson.base.Feature;
 
-public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO extends SimpleQueryDTO>
-		extends RDataESRepository<TModel, TQueryDTO> implements IRWBaseESRepository<TModel> {
+public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQueryDTO extends SimpleQueryDTO>
+		extends RGeoDataESRepository<TModel, TQueryDTO> implements IRWBaseESRepository<TModel> {
 
 	@Autowired
 	ElasticPersistenceUtils<TModel> elasticPersistenceUtils;
 
-	public RWDataESRepository() {
-		super();
-	}
-
-	public RWDataESRepository(String[] index, String[] type) {
+	public RWGeoDataESRepository(String[] index, String[] type) {
 		super(index, type);
 	}
 
@@ -32,7 +28,7 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 			return checkInsert;
 		}
 
-		return elasticPersistenceUtils.save(getIndex()[0], getType()[0], modelToIndex, modelToIndex.getId().toString());
+		return elasticPersistenceUtils.save(getIndex()[0], getType()[0], modelToIndex, modelToIndex.getId());
 	}
 
 	@Override
