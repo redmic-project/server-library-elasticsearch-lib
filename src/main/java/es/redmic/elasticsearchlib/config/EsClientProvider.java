@@ -12,8 +12,8 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.xpack.client.PreBuiltXPackTransportClient;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
 
 import es.redmic.exception.common.ExceptionType;
 import es.redmic.exception.common.InternalException;
@@ -24,8 +24,7 @@ public class EsClientProvider {
 
 	private List<String> addresses;
 	private Integer port;
-	private String clusterName;
-	private String xpackSecurityUser;
+	private String clusterName;;
 
 	protected static Logger logger = LogManager.getLogger();
 
@@ -33,7 +32,6 @@ public class EsClientProvider {
 		this.addresses = config.getAddresses();
 		this.port = config.getPort();
 		this.clusterName = config.getClusterName();
-		this.xpackSecurityUser = config.getXpackSecurityUser();
 	}
 
 	public TransportClient getClient() {
@@ -49,16 +47,15 @@ public class EsClientProvider {
 
 		Settings settings = Settings.builder()
 				.put("cluster.name", this.clusterName)
-				.put("xpack.security.user", this.xpackSecurityUser)
 				.build();
 
 		// @formatter:on
 
-		client = new PreBuiltXPackTransportClient(settings);
+		client = new PreBuiltTransportClient(settings);
 
 		for (String address : addresses) {
 			try {
-				client.addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName(address), port));
+				client.addTransportAddress(new TransportAddress(InetAddress.getByName(address), port));
 			} catch (UnknownHostException e) {
 				logger.warn(e.getMessage());
 			}

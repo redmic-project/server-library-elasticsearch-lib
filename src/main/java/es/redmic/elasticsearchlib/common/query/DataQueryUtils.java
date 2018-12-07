@@ -1,24 +1,18 @@
 package es.redmic.elasticsearchlib.common.query;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.lucene.search.join.ScoreMode;
-import org.elasticsearch.common.geo.builders.ShapeBuilders;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.GeoShapeQueryBuilder;
+import org.elasticsearch.index.query.GeoBoundingBoxQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeQueryBuilder;
-import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptType;
 
-import com.vividsolutions.jts.geom.Coordinate;
-
-import es.redmic.exception.elasticsearch.ESBBoxQueryException;
 import es.redmic.models.es.common.query.dto.BboxQueryDTO;
 import es.redmic.models.es.common.query.dto.DataQueryDTO;
 import es.redmic.models.es.common.query.dto.DateLimitsDTO;
@@ -62,19 +56,14 @@ public abstract class DataQueryUtils extends SimpleQueryUtils {
 		return getResultQuery(query);
 	}
 
-	public static GeoShapeQueryBuilder getBBoxQuery(BboxQueryDTO bbox) {
+	public static GeoBoundingBoxQueryBuilder getBBoxQuery(BboxQueryDTO bbox) {
 
 		if (bbox != null && bbox.getBottomRightLat() != null && bbox.getBottomRightLon() != null
 				&& bbox.getTopLeftLat() != null && bbox.getTopLeftLon() != null) {
 
-			Coordinate topLeft = new Coordinate(bbox.getTopLeftLon(), bbox.getTopLeftLat());
-			Coordinate bottomRight = new Coordinate(bbox.getBottomRightLon(), bbox.getBottomRightLat());
-
-			try {
-				return QueryBuilders.geoShapeQuery("geometry", ShapeBuilders.newEnvelope(topLeft, bottomRight));
-			} catch (IOException e) {
-				throw new ESBBoxQueryException(e);
-			}
+			GeoPoint topLeft = new GeoPoint(bbox.getTopLeftLat(), bbox.getTopLeftLon());
+			GeoPoint bottomRight = new GeoPoint(bbox.getBottomRightLat(), bbox.getBottomRightLon());
+			return QueryBuilders.geoBoundingBoxQuery("geometry").setCorners(topLeft, bottomRight);
 		}
 		return null;
 	}
@@ -104,7 +93,8 @@ public abstract class DataQueryUtils extends SimpleQueryUtils {
 
 		BoolQueryBuilder query = new BoolQueryBuilder();
 		query.must(QueryBuilders.existsQuery((basePath != null) ? (basePath + "." + property) : property));
-		query.must(QueryBuilders.scriptQuery(new Script(ScriptType.FILE, SCRIPT_ENGINE, scriptName, scriptParams)));
+		// query.must(QueryBuilders.scriptQuery(new Script(ScriptType.FILE,
+		// SCRIPT_ENGINE, scriptName, scriptParams)));
 
 		return query;
 	}
@@ -124,7 +114,8 @@ public abstract class DataQueryUtils extends SimpleQueryUtils {
 		BoolQueryBuilder query = new BoolQueryBuilder();
 		query.must(QueryBuilders.nestedQuery(nestedPath,
 				QueryBuilders.existsQuery(nestedPath + "." + basePath + "." + property), ScoreMode.Avg));
-		query.must(QueryBuilders.scriptQuery(new Script(ScriptType.FILE, SCRIPT_ENGINE, scriptName, scriptParams)));
+		// query.must(QueryBuilders.scriptQuery(new Script(ScriptType.FILE,
+		// SCRIPT_ENGINE, scriptName, scriptParams)));
 
 		return query;
 	}

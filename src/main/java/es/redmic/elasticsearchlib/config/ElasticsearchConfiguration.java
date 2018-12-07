@@ -15,8 +15,6 @@ public class ElasticsearchConfiguration {
 	private Integer port;
 	@Value("${elastic.clusterName}")
 	private String clusterName;
-	@Value("${elastic.xpackSecurityUser}")
-	private String xpackSecurityUser;
 
 	@Bean
 	public EsClientProvider esClientProvider() {
@@ -25,7 +23,6 @@ public class ElasticsearchConfiguration {
 		elastic.setAddresses(addresses);
 		elastic.setPort(port);
 		elastic.setClusterName(clusterName);
-		elastic.setXpackSecurityUser(xpackSecurityUser);
 		return new EsClientProvider(elastic);
 	}
 }

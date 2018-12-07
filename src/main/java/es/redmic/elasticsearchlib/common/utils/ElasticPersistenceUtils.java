@@ -18,8 +18,6 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -160,46 +158,6 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 					updateRequest.routing(grandParentId);
 
 				updateRequest.doc(fields);
-				result.add(updateRequest);
-			}
-		}
-		return result;
-	}
-
-	public List<UpdateRequest> getUpdateScript(String[] index, String[] type, String id, Map<String, Object> fields,
-			String scriptName) {
-
-		return getUpdateScript(index, type, id, fields, scriptName, null, null);
-	}
-
-	public List<UpdateRequest> getUpdateScript(String[] index, String[] type, String id, Map<String, Object> fields,
-			String scriptName, String parentId) {
-
-		return getUpdateScript(index, type, id, fields, scriptName, parentId, null);
-	}
-
-	public List<UpdateRequest> getUpdateScript(String[] index, String[] type, String id, Map<String, Object> fields,
-			String scriptName, String parentId, String grandParentId) {
-
-		List<UpdateRequest> result = new ArrayList<UpdateRequest>();
-
-		for (int i = 0; i < index.length; i++) {
-			for (int j = 0; j < type.length; j++) {
-				UpdateRequest updateRequest = new UpdateRequest();
-				updateRequest.index(index[i]);
-				updateRequest.type(type[j]);
-				updateRequest.id(id);
-				updateRequest.retryOnConflict(3);
-				updateRequest.fetchSource(true);
-
-				if (parentId != null)
-					updateRequest.parent(parentId);
-
-				if (grandParentId != null)
-					updateRequest.routing(grandParentId);
-
-				updateRequest.script(new Script(ScriptType.FILE, SCRIPT_ENGINE, scriptName, fields));
-				updateRequest.retryOnConflict(2);
 				result.add(updateRequest);
 			}
 		}

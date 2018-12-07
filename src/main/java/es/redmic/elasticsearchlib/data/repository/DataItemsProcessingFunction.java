@@ -29,7 +29,7 @@ public class DataItemsProcessingFunction<TModel extends BaseES<?>> implements IP
 
 	private TModel mapper(SearchHit hit) {
 
-		return objectMapper.convertValue(hit.getSource(), this.typeOfTModel);
+		return objectMapper.convertValue(hit.getSourceAsMap(), this.typeOfTModel);
 	}
 
 	@Override
