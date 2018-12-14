@@ -1,15 +1,19 @@
 package es.redmic.elasticsearchlib.common.repository;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import javax.annotation.PostConstruct;
 
 import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequestBuilder;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
@@ -24,6 +28,7 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.MultiMatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -39,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,6 +72,9 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	@Value("${redmic.elasticsearch.check.mappings}")
 	private boolean checkMappings;
+
+	@Value("${redmic.elasticsearch.create.mappings}")
+	private boolean createMappings;
 
 	@Autowired
 	protected EsClientProvider ESProvider;
@@ -99,34 +108,17 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	}
 
 	@PostConstruct
-	private void checkIndicesAndTypes() {
+	private void checkMappings() {
 		if (checkMappings && (INDEX != null && TYPE != null)) {
-			checkExistsIndices();
-			checkExistsTypes();
+			checkIndicesAndTypes();
 		}
 	}
 
 	/**
-	 * Chequea que los índices existen
+	 * Chequea que los índices y tipos existan. En casos de no existir, si así es
+	 * configurado, los manda a crear.
 	 */
-	private void checkExistsIndices() {
-
-		for (int i = 0; i < INDEX.length; i++) {
-			String index = INDEX[i];
-
-			Boolean exists = ESProvider.getClient().admin().indices().exists(new IndicesExistsRequest(index))
-					.actionGet().isExists();
-
-			if (!exists) {
-				throw new ESNotExistsIndexException(index);
-			}
-		}
-	}
-
-	/**
-	 * Chequea que los tipos existen
-	 */
-	private void checkExistsTypes() {
+	private void checkIndicesAndTypes() {
 
 		ClusterStateResponse resp = ESProvider.getClient().admin().cluster().prepareState().execute().actionGet();
 		ImmutableOpenMap<String, IndexMetaData> indices = resp.getState().metaData().getIndices();
@@ -137,20 +129,73 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			if (index == null) {
 				AliasOrIndex aliases = resp.getState().getMetaData().getAliasAndIndexLookup().get(INDEX[i]);
 
-				if (aliases == null || aliases.getIndices() == null || aliases.getIndices().size() == 0) {
+				boolean noExist = (aliases == null || aliases.getIndices() == null || aliases.getIndices().size() == 0);
+
+				if (noExist && createMappings) {
+					createIndex(INDEX[i]);
+				} else if (noExist && !checkMappings) {
 					throw new ESNotExistsIndexException(INDEX[i]);
+				} else {
+					index = aliases.getIndices().get(0);
+					checkTypes(index);
 				}
-				index = aliases.getIndices().get(0);
+			} else {
+				checkTypes(index);
 			}
 
-			ImmutableOpenMap<String, MappingMetaData> mappings = index.getMappings();
-			for (int j = 0; j < TYPE.length; j++) {
-				String type = TYPE[j];
-				if (!mappings.containsKey(type)) {
-					throw new ESNotExistsTypeException(index.getIndex().getName(), type);
-				}
+		}
+	}
+
+	/**
+	 * Comprueba que existen los types para un index en concreto
+	 */
+	private void checkTypes(IndexMetaData index) {
+
+		ImmutableOpenMap<String, MappingMetaData> mappings = index.getMappings();
+
+		for (int j = 0; j < TYPE.length; j++) {
+			String type = TYPE[j];
+			if (!mappings.containsKey(type)) {
+				throw new ESNotExistsTypeException(index.getIndex().getName(), type);
 			}
 		}
+	}
+
+	/**
+	 * En caso de no existir el index, se debe crear index y types con mapping
+	 * simultaneamente.
+	 */
+	private void createIndex(String index) {
+
+		CreateIndexRequest request = new CreateIndexRequest(index);
+
+		for (int j = 0; j < TYPE.length; j++) {
+			request = createType(index, TYPE[j], request);
+		}
+
+		try {
+			ESProvider.getClient().admin().indices().create(request).get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new ESNotExistsIndexException(index);
+		}
+	}
+
+	/**
+	 * Crea el mapping para cada uno de los type
+	 */
+	private CreateIndexRequest createType(String index, String type, CreateIndexRequest request) {
+
+		String source;
+
+		try {
+			File resource = new ClassPathResource("mappings/" + index + "/" + type + ".json").getFile();
+
+			source = new String(Files.readAllBytes(resource.toPath()));
+		} catch (IOException e) {
+			throw new ESNotExistsIndexException(index);
+		}
+
+		return request.source(source, XContentType.JSON);
 	}
 
 	protected abstract JavaType getSourceType(Class<?> wrapperClass);
