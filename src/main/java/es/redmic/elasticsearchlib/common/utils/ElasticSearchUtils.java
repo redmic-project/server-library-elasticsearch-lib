@@ -15,12 +15,10 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -140,6 +138,7 @@ public class ElasticSearchUtils {
 	/*
 	 * Pasa la respuesta map
 	 */
+	@SuppressWarnings("unchecked")
 	public static Map<String, Object> searchResponsetoObject(SearchResponse response) {
 
 		XContentBuilder builder;
@@ -149,7 +148,7 @@ public class ElasticSearchUtils {
 			response.innerToXContent(builder, ToXContentObject.EMPTY_PARAMS);
 			builder.endObject();
 
-			return XContentHelper.convertToMap(new BytesArray(builder.toString()), true, XContentType.JSON).v2();
+			return jMapper.readValue(Strings.toString(builder), Map.class);
 
 		} catch (IOException e) {
 			throw new ESParseException(e);
