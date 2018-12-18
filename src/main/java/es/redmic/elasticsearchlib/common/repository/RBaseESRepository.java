@@ -176,6 +176,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		try {
 			ESProvider.getClient().admin().indices().create(request).get();
 		} catch (InterruptedException | ExecutionException e) {
+			// TODO: crear exeption
 			throw new ESNotExistsIndexException(index);
 		}
 	}
@@ -188,7 +189,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		String source;
 
 		try {
-			File resource = new ClassPathResource("mappings/" + index + "/" + type + ".json").getFile();
+			File resource = new ClassPathResource("/mappings/" + index + "/" + type + ".json").getFile();
 
 			source = new String(Files.readAllBytes(resource.toPath()));
 		} catch (IOException e) {
