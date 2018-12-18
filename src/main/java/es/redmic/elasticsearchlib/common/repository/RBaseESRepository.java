@@ -1,9 +1,8 @@
 package es.redmic.elasticsearchlib.common.repository;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.ParameterizedType;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +10,7 @@ import java.util.concurrent.ExecutionException;
 
 import javax.annotation.PostConstruct;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -53,6 +53,7 @@ import es.redmic.elasticsearchlib.common.query.SimpleQueryUtils;
 import es.redmic.elasticsearchlib.common.utils.ElasticSearchUtils;
 import es.redmic.elasticsearchlib.common.utils.IProcessItemFunction;
 import es.redmic.elasticsearchlib.config.EsClientProvider;
+import es.redmic.exception.custom.ResourceNotFoundException;
 import es.redmic.exception.data.ItemNotFoundException;
 import es.redmic.exception.databinding.RequestNotValidException;
 import es.redmic.exception.elasticsearch.ESNotExistsIndexException;
@@ -189,11 +190,12 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		String source;
 
 		try {
-			File resource = new ClassPathResource("/mappings/" + index + "/" + type + ".json").getFile();
+			InputStream resource = new ClassPathResource("/mappings/" + index + "/" + type + ".json").getInputStream();
 
-			source = new String(Files.readAllBytes(resource.toPath()));
+			source = IOUtils.toString(resource);
 		} catch (IOException e) {
-			throw new ESNotExistsIndexException(index);
+			e.printStackTrace();
+			throw new ResourceNotFoundException(e);
 		}
 
 		return request.source(source, XContentType.JSON);
