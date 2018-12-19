@@ -55,8 +55,9 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 					.actionGet();
 
 		// @formatter:on
+		int failed = result.getShardInfo().getFailed();
 
-		if (!result.status().equals(RestStatus.CREATED)) {
+		if (failed != 0) {
 			logger.debug("Error indexando en " + index + " " + type);
 			return new EventApplicationResult(ExceptionType.ES_INDEX_DOCUMENT.toString());
 		}
