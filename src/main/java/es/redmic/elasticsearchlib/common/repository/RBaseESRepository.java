@@ -56,6 +56,7 @@ import es.redmic.elasticsearchlib.config.EsClientProvider;
 import es.redmic.exception.custom.ResourceNotFoundException;
 import es.redmic.exception.data.ItemNotFoundException;
 import es.redmic.exception.databinding.RequestNotValidException;
+import es.redmic.exception.elasticsearch.ESCreateMappingException;
 import es.redmic.exception.elasticsearch.ESNotExistsIndexException;
 import es.redmic.exception.elasticsearch.ESNotExistsTypeException;
 import es.redmic.models.es.common.model.BaseES;
@@ -177,8 +178,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		try {
 			ESProvider.getClient().admin().indices().create(request).get();
 		} catch (InterruptedException | ExecutionException e) {
-			// TODO: crear exeption
-			throw new ESNotExistsIndexException(index);
+			throw new ESCreateMappingException(index);
 		}
 	}
 
