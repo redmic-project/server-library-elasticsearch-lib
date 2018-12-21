@@ -14,6 +14,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.get.GetRequestBuilder;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
@@ -86,6 +87,8 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	private String[] INDEX;
 	private String[] TYPE;
 
+	protected Boolean ROLLOVER_INDEX = false;
+
 	protected Integer SUGGESTSIZE = 10;
 
 	protected Integer MAX_SIZE = 100000;
@@ -96,6 +99,11 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	protected Class<TModel> typeOfTModel;
 
 	public RBaseESRepository() {
+	}
+
+	public RBaseESRepository(String[] index, String[] type, Boolean rollOverIndex) {
+		this(index, type);
+		ROLLOVER_INDEX = rollOverIndex;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -134,7 +142,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 				boolean noExist = (aliases == null || aliases.getIndices() == null || aliases.getIndices().size() == 0);
 
 				if (noExist && createMappings) {
-					createIndex(INDEX[i]);
+					prepareIndex(INDEX[i]);
 				} else if (noExist && !checkMappings) {
 					throw new ESNotExistsIndexException(INDEX[i]);
 				} else {
@@ -164,15 +172,25 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	}
 
 	/**
-	 * En caso de no existir el index, se debe crear index y types con mapping
-	 * simultaneamente.
+	 * En caso de no existir el index, se debe crear index y type con mapping. Si se
+	 * trata de timeseries se debe crear en su lugar un template para aplicar a
+	 * todos los futuros índices
 	 */
+	private void prepareIndex(String index) {
+
+		if (ROLLOVER_INDEX) {
+			createTemplate(index);
+		} else {
+			createIndex(index);
+		}
+	}
+
 	private void createIndex(String index) {
 
 		CreateIndexRequest request = new CreateIndexRequest(index);
 
 		for (int j = 0; j < TYPE.length; j++) {
-			request = createType(index, TYPE[j], request);
+			request.source(getSettings(index, TYPE[j]), XContentType.JSON);
 		}
 
 		try {
@@ -182,23 +200,42 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		}
 	}
 
-	/**
-	 * Crea el mapping para cada uno de los type
-	 */
-	private CreateIndexRequest createType(String index, String type, CreateIndexRequest request) {
+	private void createTemplate(String index) {
 
-		String source;
+		PutIndexTemplateRequest request = new PutIndexTemplateRequest(index + "-template");
+
+		for (int j = 0; j < TYPE.length; j++) {
+			request.source(getSettings(index, TYPE[j]), XContentType.JSON);
+		}
+
+		try {
+			ESProvider.getClient().admin().indices().putTemplate(request).get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new ESCreateMappingException(index);
+		}
+	}
+
+	/**
+	 * Retorna las settings para cada uno de los type
+	 */
+	private String getSettings(String index, String type) {
 
 		try {
 			InputStream resource = new ClassPathResource("/mappings/" + index + "/" + type + ".json").getInputStream();
 
-			source = IOUtils.toString(resource);
+			return IOUtils.toString(resource);
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new ResourceNotFoundException(e);
 		}
+	}
 
-		return request.source(source, XContentType.JSON);
+	/**
+	 * Función que comprueba si el resultado de una búsqueda es que el índice no
+	 * existe
+	 */
+	protected boolean indexNoExistResponse(org.elasticsearch.action.search.MultiSearchResponse.Item[] responses) {
+		return responses[0].isFailure() && responses[0].getFailure().getMessage().contains("no such index");
 	}
 
 	protected abstract JavaType getSourceType(Class<?> wrapperClass);
