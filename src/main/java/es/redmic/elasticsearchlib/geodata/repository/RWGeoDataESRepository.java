@@ -15,6 +15,10 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 	@Autowired
 	ElasticPersistenceUtils<TModel> elasticPersistenceUtils;
 
+	public RWGeoDataESRepository(String[] index, String[] type, Boolean rollOverIndex) {
+		super(index, type, rollOverIndex);
+	}
+
 	public RWGeoDataESRepository(String[] index, String[] type) {
 		super(index, type);
 	}
@@ -28,7 +32,7 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 			return checkInsert;
 		}
 
-		return elasticPersistenceUtils.save(getIndex()[0], getType()[0], modelToIndex, modelToIndex.getId());
+		return elasticPersistenceUtils.save(getIndex(modelToIndex), getType()[0], modelToIndex, modelToIndex.getId());
 	}
 
 	@Override
@@ -40,7 +44,7 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 			return checkUpdate;
 		}
 
-		return elasticPersistenceUtils.update(getIndex()[0], getType()[0], modelToIndex,
+		return elasticPersistenceUtils.update(getIndex(modelToIndex), getType()[0], modelToIndex,
 				modelToIndex.getId().toString());
 	}
 
@@ -80,4 +84,13 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 	 * cumplen. Por ejemplo que no esté referenciado en otros servicios.
 	 */
 	protected abstract EventApplicationResult checkDeleteConstraintsFulfilled(String modelToIndex);
+
+	/*
+	 * Función para obtener el índice a partir del indice original + un campo de los
+	 * datos Solo en series temporales, en otros casos, devolver directamente el
+	 * índice.
+	 */
+	protected String getIndex(TModel modelToIndex) {
+		return getIndex()[0];
+	};
 }

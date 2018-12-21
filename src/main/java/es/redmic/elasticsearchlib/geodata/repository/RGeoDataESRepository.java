@@ -19,6 +19,10 @@ import es.redmic.models.es.geojson.wrapper.GeoSearchWrapper;
 public abstract class RGeoDataESRepository<TModel extends Feature<?, ?>, TQueryDTO extends SimpleQueryDTO>
 		extends RBaseESRepository<TModel, TQueryDTO> {
 
+	public RGeoDataESRepository(String[] index, String[] type, Boolean rollOverIndex) {
+		super(index, type, rollOverIndex);
+	}
+
 	public RGeoDataESRepository(String[] index, String[] type) {
 		super(index, type);
 	}
