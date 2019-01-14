@@ -2,6 +2,7 @@ package es.redmic.elasticsearchlib.config;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Base64;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
@@ -24,7 +25,9 @@ public class EsClientProvider {
 
 	private List<String> addresses;
 	private Integer port;
-	private String clusterName;;
+	private String clusterName;
+	private String user;
+	private String password;
 
 	protected static Logger logger = LogManager.getLogger();
 
@@ -32,6 +35,8 @@ public class EsClientProvider {
 		this.addresses = config.getAddresses();
 		this.port = config.getPort();
 		this.clusterName = config.getClusterName();
+		this.user = config.getUser();
+		this.password = config.getPassword();
 	}
 
 	public TransportClient getClient() {
@@ -49,9 +54,12 @@ public class EsClientProvider {
 				.put("cluster.name", this.clusterName)
 				.build();
 
+		String authorization = Base64.getEncoder().encodeToString((user + ":" + password).getBytes());
+		
 		// @formatter:on
 
 		client = new PreBuiltTransportClient(settings);
+		client.threadPool().getThreadContext().putHeader("Authorization", "Basic " + authorization);
 
 		for (String address : addresses) {
 			try {
@@ -72,5 +80,4 @@ public class EsClientProvider {
 	private void disconnect() {
 		client.close();
 	}
-
 }

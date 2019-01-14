@@ -15,6 +15,10 @@ public class ElasticsearchConfiguration {
 	private Integer port;
 	@Value("${elastic.clusterName}")
 	private String clusterName;
+	@Value("${elastic.user}")
+	private String user;
+	@Value("${elastic.password}")
+	private String password;
 
 	@Bean
 	public EsClientProvider esClientProvider() {
@@ -23,6 +27,8 @@ public class ElasticsearchConfiguration {
 		elastic.setAddresses(addresses);
 		elastic.setPort(port);
 		elastic.setClusterName(clusterName);
+		elastic.setUser(user);
+		elastic.setPassword(password);
 		return new EsClientProvider(elastic);
 	}
 }
