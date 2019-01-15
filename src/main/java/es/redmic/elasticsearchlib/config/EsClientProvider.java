@@ -1,19 +1,24 @@
 package es.redmic.elasticsearchlib.config;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,8 +36,6 @@ public class EsClientProvider {
 	private List<String> addresses;
 	@Value("${elastic.port}")
 	private Integer port;
-	@Value("${elastic.secured}")
-	private Boolean secured;
 	@Value("${elastic.user}")
 	private String user;
 	@Value("${elastic.password}")
@@ -52,17 +55,23 @@ public class EsClientProvider {
 	@PostConstruct
 	private void connect() {
 
-		String authorization = "";
-		if (secured)
-			authorization = user + ":" + password + "@";
-
-		List<HttpHost> hosts = new ArrayList<>();
+		HttpHost[] hosts = new HttpHost[addresses.size()];
+		int it = 0;
 		for (String address : addresses) {
-
-			hosts.add(new HttpHost(authorization + address, port, "http"));
+			hosts[it] = new HttpHost(address, port, "http");
+			it++;
 		}
 
-		client = new RestHighLevelClient(RestClient.builder(hosts.toArray(new HttpHost[hosts.size()])));
+		final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+		credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
+
+		client = new RestHighLevelClient(
+				RestClient.builder(hosts).setHttpClientConfigCallback(new HttpClientConfigCallback() {
+					@Override
+					public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+						return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+					}
+				}));
 
 		checkClusterHealth();
 	}
