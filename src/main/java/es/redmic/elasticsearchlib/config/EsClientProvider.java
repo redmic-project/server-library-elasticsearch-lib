@@ -1,45 +1,49 @@
 package es.redmic.elasticsearchlib.config;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Base64;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
+import org.apache.http.HttpHost;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 
 import es.redmic.exception.common.ExceptionType;
 import es.redmic.exception.common.InternalException;
 
+@Configuration
 public class EsClientProvider {
 
-	private TransportClient client;
+	private RestHighLevelClient client;
 
+	@Value("#{'${elastic.addresses}'.split(',')}")
 	private List<String> addresses;
+	@Value("${elastic.port}")
 	private Integer port;
-	private String clusterName;
+	@Value("${elastic.secured}")
+	private Boolean secured;
+	@Value("${elastic.user}")
 	private String user;
+	@Value("${elastic.password}")
 	private String password;
 
 	protected static Logger logger = LogManager.getLogger();
 
-	public EsClientProvider(EsConfig config) {
-		this.addresses = config.getAddresses();
-		this.port = config.getPort();
-		this.clusterName = config.getClusterName();
-		this.user = config.getUser();
-		this.password = config.getPassword();
+	public EsClientProvider() {
 	}
 
-	public TransportClient getClient() {
+	public RestHighLevelClient getClient() {
 		if (client == null)
 			connect();
 		return client;
@@ -48,36 +52,40 @@ public class EsClientProvider {
 	@PostConstruct
 	private void connect() {
 
-		// @formatter:off
+		String authorization = "";
+		if (secured)
+			authorization = user + ":" + password + "@";
 
-		Settings settings = Settings.builder()
-				.put("cluster.name", this.clusterName)
-				.build();
-
-		String authorization = Base64.getEncoder().encodeToString((user + ":" + password).getBytes());
-		
-		// @formatter:on
-
-		client = new PreBuiltTransportClient(settings);
-		client.threadPool().getThreadContext().putHeader("Authorization", "Basic " + authorization);
-
+		List<HttpHost> hosts = new ArrayList<>();
 		for (String address : addresses) {
-			try {
-				client.addTransportAddress(new TransportAddress(InetAddress.getByName(address), port));
-			} catch (UnknownHostException e) {
-				logger.warn(e.getMessage());
-			}
+
+			hosts.add(new HttpHost(authorization + address, port, "http"));
 		}
 
-		List<DiscoveryNode> nodes = client.connectedNodes();
-		if (nodes == null || nodes.isEmpty()) {
-			// TODO: Añadir excepción propia
+		client = new RestHighLevelClient(RestClient.builder(hosts.toArray(new HttpHost[hosts.size()])));
+
+		checkClusterHealth();
+	}
+
+	private void checkClusterHealth() {
+
+		ClusterHealthResponse response;
+
+		try {
+			response = client.cluster().health(new ClusterHealthRequest(), RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new InternalException(ExceptionType.INTERNAL_EXCEPTION);
+		}
+
+		if (response.getStatus().equals(ClusterHealthStatus.RED)) {
+			logger.error("Imposible conectar con elastic. Cluster no saludable");
 			throw new InternalException(ExceptionType.INTERNAL_EXCEPTION);
 		}
 	}
 
 	@PreDestroy
-	private void disconnect() {
+	private void disconnect() throws IOException {
 		client.close();
 	}
 }

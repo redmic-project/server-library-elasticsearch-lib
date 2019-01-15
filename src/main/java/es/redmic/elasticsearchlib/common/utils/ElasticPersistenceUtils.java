@@ -1,23 +1,23 @@
 package es.redmic.elasticsearchlib.common.utils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.bulk.BulkItemResponse;
-import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.rest.RestStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -45,58 +45,60 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 	public EventApplicationResult save(String index, String type, TModel model, String id) {
 
 		// @formatter:off
-
-		IndexResponse result = ESProvider.getClient()
-			.prepareIndex(index, type)
-			.setSource(convertTModelToSource(model))
-			.setId(id)
-			.setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-				.execute()
-					.actionGet();
-
+		
+		IndexRequest request = new IndexRequest(index, type)
+				.source(convertTModelToSource(model))
+				.id(id)
+				.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+		
 		// @formatter:on
-		int failed = result.getShardInfo().getFailed();
 
-		if (failed != 0) {
+		try {
+			ESProvider.getClient().index(request, RequestOptions.DEFAULT);
+			return new EventApplicationResult(true);
+		} catch (IOException e) {
 			logger.debug("Error indexando en " + index + " " + type);
+			e.printStackTrace();
 			return new EventApplicationResult(ExceptionType.ES_INDEX_DOCUMENT.toString());
 		}
-
-		return new EventApplicationResult(true);
 	}
 
 	public EventApplicationResult update(String index, String type, TModel model, String id) {
 
-		UpdateRequest updateRequest = new UpdateRequest();
-		updateRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-		updateRequest.index(index);
-		updateRequest.type(type);
-		updateRequest.id(id);
-		updateRequest.doc(convertTModelToSource(model));
-		updateRequest.fetchSource(true);
+		// @formatter:off
+
+		UpdateRequest updateRequest = new UpdateRequest(index, type, id)
+				.doc(convertTModelToSource(model))
+				.fetchSource(false)
+				.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+
+		// @formatter:on
 
 		try {
-			ESProvider.getClient().update(updateRequest).get();
-		} catch (InterruptedException | ExecutionException e) {
+			ESProvider.getClient().update(updateRequest, RequestOptions.DEFAULT);
+
+			return new EventApplicationResult(true);
+		} catch (IOException e) {
 			logger.debug("Error modificando el item con id " + id + " en " + index + " " + type);
+			e.printStackTrace();
 			return new EventApplicationResult(ExceptionType.ES_UPDATE_DOCUMENT.toString());
 		}
 
-		return new EventApplicationResult(true);
 	}
 
 	public EventApplicationResult update(String index, String type, String id, XContentBuilder doc) {
 
-		UpdateRequest updateRequest = new UpdateRequest();
-		updateRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-		updateRequest.index(index);
-		updateRequest.type(type);
-		updateRequest.id(id);
-		updateRequest.doc(doc);
-		updateRequest.fetchSource(true);
+		// @formatter:off
+		
+		UpdateRequest updateRequest = new UpdateRequest(index, type, id)
+				.setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+				.doc(doc)
+				.fetchSource(true);
+		
+		// @formatter:on
 
 		try {
-			ESProvider.getClient().update(updateRequest).get();
+			ESProvider.getClient().update(updateRequest, RequestOptions.DEFAULT);
 		} catch (Exception e) {
 			logger.debug("Error modificando el item con id " + id + " en " + index + " " + type);
 			return new EventApplicationResult(ExceptionType.ES_UPDATE_DOCUMENT.toString());
@@ -107,21 +109,15 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	public EventApplicationResult delete(String index, String type, String id) {
 
-		// @formatter:off
+		DeleteRequest deleteRequest = new DeleteRequest(index, type, id).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
-		DeleteResponse result = ESProvider.getClient()
-			.prepareDelete(index, type, id)
-			.setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-				.execute()
-					.actionGet();
-
-		// @formatter:on
-
-		if (!result.status().equals(RestStatus.OK)) {
+		try {
+			ESProvider.getClient().delete(deleteRequest, RequestOptions.DEFAULT);
+			return new EventApplicationResult(true);
+		} catch (IOException e) {
 			logger.debug("Error borrando el item con id " + id + " en " + index + " " + type);
 			return new EventApplicationResult(ExceptionType.DELETE_ITEM_EXCEPTION.toString());
 		}
-		return new EventApplicationResult(true);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -167,13 +163,19 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	public List<UpdateResponse> updateByBulk(List<UpdateRequest> listUpdates) {
 
-		BulkRequestBuilder bulkRequest = ESProvider.getClient().prepareBulk();
+		BulkRequest bulkRequest = new BulkRequest();
 
 		for (int i = 0; i < listUpdates.size(); i++)
 			bulkRequest.add(listUpdates.get(i));
 		bulkRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
-		BulkResponse bulkResponse = bulkRequest.execute().actionGet();
+		BulkResponse bulkResponse;
+		try {
+			bulkResponse = ESProvider.getClient().bulk(bulkRequest, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new ESUpdateException("Error ejecutando modificación en batch");
+		}
 
 		if (bulkResponse.hasFailures()) {
 
@@ -197,12 +199,19 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	public List<IndexResponse> indexByBulk(List<IndexRequest> listIndexs) {
 
-		BulkRequestBuilder bulkRequest = ESProvider.getClient().prepareBulk();
+		BulkRequest bulkRequest = new BulkRequest();
 
 		for (int i = 0; i < listIndexs.size(); i++)
 			bulkRequest.add(listIndexs.get(i));
 		bulkRequest.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
-		BulkResponse bulkResponse = bulkRequest.execute().actionGet();
+
+		BulkResponse bulkResponse;
+		try {
+			bulkResponse = ESProvider.getClient().bulk(bulkRequest, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new ESUpdateException("Error ejecutando indexación en batch");
+		}
 
 		if (bulkResponse.hasFailures())
 			throw new ESUpdateException(bulkResponse.buildFailureMessage());

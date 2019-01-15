@@ -19,7 +19,7 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 		super();
 	}
 
-	public RWDataESRepository(String[] index, String[] type) {
+	public RWDataESRepository(String[] index, String type) {
 		super(index, type);
 	}
 
@@ -32,7 +32,7 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 			return checkInsert;
 		}
 
-		return elasticPersistenceUtils.save(getIndex()[0], getType()[0], modelToIndex, modelToIndex.getId().toString());
+		return elasticPersistenceUtils.save(getIndex()[0], getType(), modelToIndex, modelToIndex.getId().toString());
 	}
 
 	@Override
@@ -44,14 +44,13 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 			return checkUpdate;
 		}
 
-		return elasticPersistenceUtils.update(getIndex()[0], getType()[0], modelToIndex,
-				modelToIndex.getId().toString());
+		return elasticPersistenceUtils.update(getIndex()[0], getType(), modelToIndex, modelToIndex.getId().toString());
 	}
 
 	@Override
 	public EventApplicationResult update(String id, XContentBuilder doc) {
 
-		return elasticPersistenceUtils.update(getIndex()[0], getType()[0], id, doc);
+		return elasticPersistenceUtils.update(getIndex()[0], getType(), id, doc);
 	}
 
 	@Override
@@ -63,7 +62,7 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 			return checkDelete;
 		}
 
-		return elasticPersistenceUtils.delete(getIndex()[0], getType()[0], id);
+		return elasticPersistenceUtils.delete(getIndex()[0], getType(), id);
 	}
 
 	/*

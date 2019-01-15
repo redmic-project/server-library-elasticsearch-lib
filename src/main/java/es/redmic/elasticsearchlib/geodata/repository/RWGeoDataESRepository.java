@@ -15,11 +15,11 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 	@Autowired
 	ElasticPersistenceUtils<TModel> elasticPersistenceUtils;
 
-	public RWGeoDataESRepository(String[] index, String[] type, Boolean rollOverIndex) {
+	public RWGeoDataESRepository(String[] index, String type, Boolean rollOverIndex) {
 		super(index, type, rollOverIndex);
 	}
 
-	public RWGeoDataESRepository(String[] index, String[] type) {
+	public RWGeoDataESRepository(String[] index, String type) {
 		super(index, type);
 	}
 
@@ -32,7 +32,7 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 			return checkInsert;
 		}
 
-		return elasticPersistenceUtils.save(getIndex(modelToIndex), getType()[0], modelToIndex, modelToIndex.getId());
+		return elasticPersistenceUtils.save(getIndex(modelToIndex), getType(), modelToIndex, modelToIndex.getId());
 	}
 
 	@Override
@@ -44,14 +44,14 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 			return checkUpdate;
 		}
 
-		return elasticPersistenceUtils.update(getIndex(modelToIndex), getType()[0], modelToIndex,
+		return elasticPersistenceUtils.update(getIndex(modelToIndex), getType(), modelToIndex,
 				modelToIndex.getId().toString());
 	}
 
 	@Override
 	public EventApplicationResult update(String id, XContentBuilder doc) {
 
-		return elasticPersistenceUtils.update(getIndex()[0], getType()[0], id, doc);
+		return elasticPersistenceUtils.update(getIndex()[0], getType(), id, doc);
 	}
 
 	@Override
@@ -63,7 +63,7 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 			return checkDelete;
 		}
 
-		return elasticPersistenceUtils.delete(getIndex()[0], getType()[0], id);
+		return elasticPersistenceUtils.delete(getIndex()[0], getType(), id);
 	}
 
 	/*

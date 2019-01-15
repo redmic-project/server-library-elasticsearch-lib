@@ -6,26 +6,30 @@ import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 
 import javax.annotation.PostConstruct;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.lucene.search.join.ScoreMode;
-import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
-import org.elasticsearch.action.get.GetRequestBuilder;
+import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
-import org.elasticsearch.action.get.MultiGetRequestBuilder;
 import org.elasticsearch.action.get.MultiGetResponse;
-import org.elasticsearch.action.search.MultiSearchRequestBuilder;
+import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.action.search.SearchRequestBuilder;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
-import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.action.search.SearchScrollRequest;
+import org.elasticsearch.client.GetAliasesResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.unit.TimeValue;
@@ -37,6 +41,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.BaseAggregationBuilder;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
@@ -54,12 +59,15 @@ import es.redmic.elasticsearchlib.common.query.SimpleQueryUtils;
 import es.redmic.elasticsearchlib.common.utils.ElasticSearchUtils;
 import es.redmic.elasticsearchlib.common.utils.IProcessItemFunction;
 import es.redmic.elasticsearchlib.config.EsClientProvider;
+import es.redmic.exception.common.ExceptionType;
+import es.redmic.exception.common.InternalException;
 import es.redmic.exception.custom.ResourceNotFoundException;
 import es.redmic.exception.data.ItemNotFoundException;
 import es.redmic.exception.databinding.RequestNotValidException;
 import es.redmic.exception.elasticsearch.ESCreateMappingException;
 import es.redmic.exception.elasticsearch.ESNotExistsIndexException;
 import es.redmic.exception.elasticsearch.ESNotExistsTypeException;
+import es.redmic.exception.elasticsearch.ESQueryException;
 import es.redmic.models.es.common.model.BaseES;
 import es.redmic.models.es.common.query.dto.AggsPropertiesDTO;
 import es.redmic.models.es.common.query.dto.MgetDTO;
@@ -70,8 +78,6 @@ import es.redmic.models.es.common.query.dto.SuggestQueryDTO;
 public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO extends SimpleQueryDTO> {
 
 	protected final static Logger LOGGER = LoggerFactory.getLogger(RBaseESRepository.class);
-
-	protected static String SCRIPT_ENGINE = "groovy";
 
 	@Value("${redmic.elasticsearch.check.mappings}")
 	private boolean checkMappings;
@@ -85,7 +91,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	private QueryBuilder INTERNAL_QUERY = null;
 
 	private String[] INDEX;
-	private String[] TYPE;
+	private String TYPE;
 
 	protected Boolean ROLLOVER_INDEX = false;
 
@@ -101,13 +107,13 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	public RBaseESRepository() {
 	}
 
-	public RBaseESRepository(String[] index, String[] type, Boolean rollOverIndex) {
+	public RBaseESRepository(String[] index, String type, Boolean rollOverIndex) {
 		this(index, type);
 		ROLLOVER_INDEX = rollOverIndex;
 	}
 
 	@SuppressWarnings("unchecked")
-	public RBaseESRepository(String[] index, String[] type) {
+	public RBaseESRepository(String[] index, String type) {
 		this.INDEX = index;
 		this.TYPE = type;
 
@@ -119,7 +125,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	@PostConstruct
 	private void checkMappings() {
-		if (checkMappings && (INDEX != null && TYPE != null)) {
+		if (checkMappings && (getIndex() != null && getType() != null)) {
 			checkIndicesAndTypes();
 		}
 	}
@@ -130,44 +136,79 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	 */
 	private void checkIndicesAndTypes() {
 
-		ClusterStateResponse resp = ESProvider.getClient().admin().cluster().prepareState().execute().actionGet();
-		ImmutableOpenMap<String, IndexMetaData> indices = resp.getState().metaData().getIndices();
+		ClusterHealthResponse response;
+		try {
+			response = ESProvider.getClient().cluster().health(new ClusterHealthRequest(), RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new InternalException(ExceptionType.INTERNAL_EXCEPTION);
+		}
 
-		for (int i = 0; i < INDEX.length; i++) {
-			IndexMetaData index = indices.get(INDEX[i]);
+		String[] indexes = getIndex();
 
-			if (index == null) {
-				AliasOrIndex aliases = resp.getState().getMetaData().getAliasAndIndexLookup().get(INDEX[i]);
+		for (int i = 0; i < indexes.length; i++) {
 
-				boolean noExist = (aliases == null || aliases.getIndices() == null || aliases.getIndices().size() == 0);
+			String index = indexes[i];
+
+			if (response.getIndices() == null || response.getIndices().size() == 0
+					|| response.getIndices().get(index) == null) {
+
+				GetAliasesResponse aliasesResponse;
+				try {
+					aliasesResponse = ESProvider.getClient().indices().getAlias(new GetAliasesRequest(index),
+							RequestOptions.DEFAULT);
+				} catch (IOException e) {
+					e.printStackTrace();
+					throw new ESNotExistsIndexException(index);
+				}
+
+				boolean noExist = (aliasesResponse == null || aliasesResponse.getAliases() == null
+						|| aliasesResponse.getAliases().size() == 0);
 
 				if (noExist && createMappings) {
-					prepareIndex(INDEX[i]);
+					prepareIndex(index);
 				} else if (noExist && !checkMappings) {
-					throw new ESNotExistsIndexException(INDEX[i]);
+					throw new ESNotExistsIndexException(index);
 				} else {
-					index = aliases.getIndices().get(0);
-					checkTypes(index);
+					checkType(index);
 				}
 			} else {
-				checkTypes(index);
+				checkType(index);
 			}
 
 		}
 	}
 
 	/**
-	 * Comprueba que existen los types para un index en concreto
+	 * Comprueba que existe el type para un index en concreto
 	 */
-	private void checkTypes(IndexMetaData index) {
+	private void checkType(String index) {
 
-		ImmutableOpenMap<String, MappingMetaData> mappings = index.getMappings();
+		GetMappingsRequest request = new GetMappingsRequest();
+		request.indices(index);
 
-		for (int j = 0; j < TYPE.length; j++) {
-			String type = TYPE[j];
-			if (!mappings.containsKey(type)) {
-				throw new ESNotExistsTypeException(index.getIndex().getName(), type);
-			}
+		GetMappingsResponse getMappingResponse;
+		try {
+			getMappingResponse = ESProvider.getClient().indices().getMapping(request, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new ESNotExistsIndexException(index);
+		}
+
+		ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> allMappings = getMappingResponse.mappings();
+
+		if (allMappings.get(index) != null && allMappings.get(index).get(getType()) == null) {
+			throw new ESNotExistsTypeException(index, getType());
+
+		} else if (allMappings.get(index) == null) {
+			allMappings.forEach((entry) -> {
+				String key = entry.key;
+				if (key.contains(index) && allMappings.get(key).get(getType()) == null) {
+					throw new ESNotExistsTypeException(index, getType());
+				} else if (key.contains(index)) {
+					return;
+				}
+			});
 		}
 	}
 
@@ -189,13 +230,11 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		CreateIndexRequest request = new CreateIndexRequest(index);
 
-		for (int j = 0; j < TYPE.length; j++) {
-			request.source(getSettings(index, TYPE[j]), XContentType.JSON);
-		}
+		request.source(getSettings(index, getType()), XContentType.JSON);
 
 		try {
-			ESProvider.getClient().admin().indices().create(request).get();
-		} catch (InterruptedException | ExecutionException e) {
+			ESProvider.getClient().indices().create(request, RequestOptions.DEFAULT);
+		} catch (IOException e) {
 			throw new ESCreateMappingException(index);
 		}
 	}
@@ -204,13 +243,11 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		PutIndexTemplateRequest request = new PutIndexTemplateRequest(index + "-template");
 
-		for (int j = 0; j < TYPE.length; j++) {
-			request.source(getSettings(index, TYPE[j]), XContentType.JSON);
-		}
+		request.source(getSettings(index, TYPE), XContentType.JSON);
 
 		try {
-			ESProvider.getClient().admin().indices().putTemplate(request).get();
-		} catch (InterruptedException | ExecutionException e) {
+			ESProvider.getClient().indices().putTemplate(request, RequestOptions.DEFAULT);
+		} catch (IOException e) {
 			throw new ESCreateMappingException(index);
 		}
 	}
@@ -252,28 +289,31 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		LOGGER.debug("FindById en " + getIndex() + " " + getType() + " con id " + id);
 
-		GetResponse response = null;
-
 		for (int i = 0; i < getIndex().length; i++) {
-			for (int j = 0; j < getType().length; j++) {
-				GetRequestBuilder prepareGet = ESProvider.getClient().prepareGet(getIndex()[i], getType()[j],
-						id.toString());
 
-				if (parentId != null) {
-					prepareGet.setParent(parentId);
-				}
-				if (grandparentId != null) {
-					prepareGet.setRouting(grandparentId);
-				}
-				response = prepareGet.execute().actionGet();
+			GetRequest getRequest = new GetRequest(getIndex()[i], getType(), id.toString());
 
-				if (response != null && response.isExists()) {
-					return response;
-				}
+			if (parentId != null) {
+				getRequest.parent(parentId);
+			}
+			if (grandparentId != null) {
+				getRequest.routing(grandparentId);
+			}
+
+			GetResponse response;
+			try {
+				response = ESProvider.getClient().get(getRequest, RequestOptions.DEFAULT);
+			} catch (IOException e) {
+				e.printStackTrace();
+				throw new ItemNotFoundException("id", id + " en el servicio " + getType());
+			}
+
+			if (response != null && response.isExists()) {
+				return response;
 			}
 		}
 
-		throw new ItemNotFoundException("id", id + " en el servicio " + getType()[0]);
+		throw new ItemNotFoundException("id", id + " en el servicio " + getType());
 	}
 
 	public List<String> suggest(TQueryDTO queryDTO) {
@@ -281,6 +321,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		return suggest(queryDTO, null);
 	}
 
+	// TODO: Cambiar a SuggestionBuilder
 	public List<String> suggest(TQueryDTO queryDTO, QueryBuilder partialQuery) {
 
 		SuggestQueryDTO suggestDTO = queryDTO.getSuggest();
@@ -303,7 +344,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		LOGGER.debug("Suggest en " + getIndex() + " " + getType() + " con fields " + fields + " y texto " + text
 				+ " y query interna " + partialQuery);
 
-		SearchRequestBuilder requestBuilder = ESProvider.getClient().prepareSearch(getIndex()).setTypes(getType());
+		SearchRequest searchRequest = new SearchRequest(INDEX);
 
 		String[] suggestFields = ElasticSearchUtils.getSuggestFields(fields);
 
@@ -316,10 +357,22 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			query = QueryBuilders.boolQuery().must(query).must(queryBuilder);
 		}
 
-		requestBuilder.setQuery(query).setSize((size == null) ? SUGGESTSIZE : size)
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(query).size((size == null) ? SUGGESTSIZE : size)
 				.highlighter(ElasticSearchUtils.getHighlightBuilder(queryDTO.getSuggest().getSearchFields()));
 
-		return ElasticSearchUtils.createHighlightResponse(requestBuilder.execute().actionGet());
+		searchRequest.source(searchSourceBuilder);
+
+		SearchResponse searchResponse;
+
+		try {
+			searchResponse = ESProvider.getClient().search(searchRequest, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new ESQueryException();
+		}
+
+		return ElasticSearchUtils.createHighlightResponse(searchResponse);
 	}
 
 	protected MultiGetResponse multigetRequest(MgetDTO dto) {
@@ -337,7 +390,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		LOGGER.debug("Mget en " + getIndex() + " " + getType() + " con fields " + dto.getFields() + " e ids "
 				+ dto.getIds());
 
-		MultiGetRequestBuilder builder = ESProvider.getClient().prepareMultiGet();
+		MultiGetRequest request = new MultiGetRequest();
 
 		FetchSourceContext fetchSourceContext;
 
@@ -350,23 +403,26 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		int sizeIds = dto.getIds().size();
 		for (int i = 0; i < getIndex().length; i++) {
-			for (int j = 0; j < getType().length; j++) {
-				for (int k = 0; k < sizeIds; k++) {
+			for (int k = 0; k < sizeIds; k++) {
 
-					Item item = new Item(getIndex()[i], getType()[j], dto.getIds().get(k));
+				Item item = new Item(getIndex()[i], getType(), dto.getIds().get(k));
 
-					if (parentId != null) {
-						item.parent(parentId);
-					}
-					if (grandParentId != null) {
-						item.routing(grandParentId);
-					}
-					item.fetchSourceContext(fetchSourceContext);
-					builder.add(item);
+				if (parentId != null) {
+					item.parent(parentId);
 				}
+				if (grandParentId != null) {
+					item.routing(grandParentId);
+				}
+				item.fetchSourceContext(fetchSourceContext);
+				request.add(item);
 			}
 		}
-		return builder.execute().actionGet();
+
+		try {
+			return ESProvider.getClient().mget(request, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			throw new ESQueryException();
+		}
 	}
 
 	protected SearchResponse searchRequest(QueryBuilder query) {
@@ -391,13 +447,27 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		Integer size = getCount(QueryBuilders.boolQuery().filter(query));
 
-		SearchRequestBuilder requestBuilder = ESProvider.getClient().prepareSearch(getIndex()).setTypes(getType())
-				.setQuery(query).setSize(size).addSort(sort);
+		SearchRequest searchRequest = new SearchRequest(getIndex());
+
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(query).size(size).sort(sort);
 
 		if (returnFields != null && returnFields.size() > 0) {
-			requestBuilder.setFetchSource(ElasticSearchUtils.getReturnFields(returnFields), null);
+			searchSourceBuilder.fetchSource(ElasticSearchUtils.getReturnFields(returnFields), null);
 		}
-		return requestBuilder.execute().actionGet();
+
+		searchRequest.source(searchSourceBuilder);
+
+		SearchResponse searchResponse;
+
+		try {
+			searchResponse = ESProvider.getClient().search(searchRequest, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new ESQueryException();
+		}
+
+		return searchResponse;
 	}
 
 	protected SearchResponse searchRequest(TQueryDTO queryDTO) {
@@ -409,21 +479,32 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		LOGGER.debug("Find en " + getIndex() + " " + getType() + " con queryDTO " + queryDTO + " y query interna ");
 
-		SearchRequestBuilder requestBuilder = searchRequestBuilder(queryDTO, serviceQuery);
+		SearchRequest searchRequest = new SearchRequest(getIndex());
 
-		return requestBuilder.execute().actionGet();
+		SearchSourceBuilder requestBuilder = searchRequestBuilder(queryDTO, serviceQuery);
+
+		searchRequest.source(requestBuilder);
+
+		SearchResponse searchResponse;
+
+		try {
+			searchResponse = ESProvider.getClient().search(searchRequest, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new ESQueryException();
+		}
+
+		return searchResponse;
 	}
 
-	protected SearchRequestBuilder searchRequestBuilder(TQueryDTO queryDTO) {
+	protected SearchSourceBuilder searchRequestBuilder(TQueryDTO queryDTO) {
 
 		return searchRequestBuilder(queryDTO, null);
 	}
 
-	protected SearchRequestBuilder searchRequestBuilder(TQueryDTO queryDTO, QueryBuilder serviceQuery) {
+	protected SearchSourceBuilder searchRequestBuilder(TQueryDTO queryDTO, QueryBuilder serviceQuery) {
 
 		LOGGER.debug("Find en " + getIndex() + " " + getType() + " con queryDTO " + queryDTO + " y query interna ");
-
-		SearchRequestBuilder requestBuilder = ESProvider.getClient().prepareSearch(getIndex()).setTypes(getType());
 
 		QueryBuilder termQuery = getTermQuery(queryDTO.getTerms());
 
@@ -440,43 +521,46 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		BoolQueryBuilder queryBuilder = getQuery(queryDTO, getInternalQuery(), partialQuery);
 
-		requestBuilder.setQuery(queryBuilder);
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+		searchSourceBuilder.query(queryBuilder);
 
 		QueryBuilder postFilter = getPostFilter(queryDTO.getPostFilter());
 
 		if (postFilter != null) {
-			requestBuilder.setPostFilter(postFilter);
+			searchSourceBuilder.postFilter(postFilter);
 		}
 
 		List<BaseAggregationBuilder> aggs = getAggs(queryDTO.getAggs());
 
 		if (aggs != null) {
 			for (BaseAggregationBuilder term : aggs) {
-				requestBuilder.addAggregation((AggregationBuilder) term);
+				searchSourceBuilder.aggregation((AggregationBuilder) term);
 			}
 		}
 
 		if (queryDTO.getText() != null && (queryDTO.getText().getHighlightFields() == null
 				|| queryDTO.getText().getHighlightFields().length == 0)) {
 
-			requestBuilder.highlighter(ElasticSearchUtils.getHighlightBuilder(queryDTO.getText().getHighlightFields()));
+			searchSourceBuilder
+					.highlighter(ElasticSearchUtils.getHighlightBuilder(queryDTO.getText().getHighlightFields()));
 		}
-		requestBuilder.setFrom(queryDTO.getFrom());
-		requestBuilder.setSize(getSize(queryDTO, queryBuilder));
+		searchSourceBuilder.from(queryDTO.getFrom());
+		searchSourceBuilder.size(getSize(queryDTO, queryBuilder));
 
 		List<SortBuilder<?>> sorts = getSorts(queryDTO.getSorts());
 		// Finalmente solo en caso de tener una ordenación se añade a la request
 		if (sorts != null && sorts.size() > 0) {
 			for (int i = 0; i < sorts.size(); i++)
-				requestBuilder.addSort(sorts.get(i));
+				searchSourceBuilder.sort(sorts.get(i));
 		}
 
 		List<String> returnFields = queryDTO.getReturnFields();
 		if (returnFields != null && returnFields.size() > 0) {
-			requestBuilder.setFetchSource(ElasticSearchUtils.getReturnFields(returnFields), null);
+			searchSourceBuilder.fetchSource(ElasticSearchUtils.getReturnFields(returnFields), null);
 		}
 
-		return requestBuilder;
+		return searchSourceBuilder;
 	}
 
 	private List<SortBuilder<?>> getSorts(List<SortDTO> sortDTOList) {
@@ -491,35 +575,62 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		return sorts;
 	}
 
-	protected MultiSearchResponse getMultiFindResponses(List<SearchRequestBuilder> searchs) {
+	protected MultiSearchResponse getMultiFindResponses(List<SearchSourceBuilder> searchs) {
 
-		MultiSearchRequestBuilder sr = ESProvider.getClient().prepareMultiSearch();
+		MultiSearchRequest request = new MultiSearchRequest();
 
 		for (int i = 0; i < searchs.size(); i++) {
-			sr.add(searchs.get(i));
+			request.add(new SearchRequest().indices(getIndex()).source(searchs.get(i)));
 		}
-		return sr.get();
+		try {
+			return ESProvider.getClient().msearch(request, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new ESQueryException();
+		}
 	}
 
 	protected List<?> scrollQueryReturnItems(QueryBuilder builder, IProcessItemFunction<?> func) {
 		List<SortBuilder<?>> sortBuilders = getSort();
-		SearchRequestBuilder query = ESProvider.getClient().prepareSearch(getIndex()).setTypes(getType())
-				.setScroll(new TimeValue(60000)).setQuery(builder);
+
+		SearchRequest searchRequest = new SearchRequest(getIndex());
+
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(builder);
 
 		for (SortBuilder<?> sort : sortBuilders) {
-			query.addSort(sort);
+			searchSourceBuilder.sort(sort);
 		}
 
-		SearchResponse scrollResp = query.setSize(100).execute().actionGet();
+		searchSourceBuilder.size(100);
+
+		searchRequest.source(searchSourceBuilder);
+		searchRequest.scroll(new TimeValue(60000));
+
+		SearchResponse searchResponse;
+		try {
+			searchResponse = ESProvider.getClient().search(searchRequest, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new ESQueryException();
+		}
+
 		while (true) {
 
-			for (SearchHit hit : scrollResp.getHits().getHits()) {
+			for (SearchHit hit : searchResponse.getHits().getHits()) {
 				func.process(hit);
 			}
-			scrollResp = ESProvider.getClient().prepareSearchScroll(scrollResp.getScrollId())
-					.setScroll(new TimeValue(600000)).execute().actionGet();
+			SearchScrollRequest scrollRequest = new SearchScrollRequest(searchResponse.getScrollId());
+			scrollRequest.scroll(new TimeValue(600000));
 
-			if (scrollResp.getHits().getHits().length == 0) {
+			try {
+				searchResponse = ESProvider.getClient().scroll(scrollRequest, RequestOptions.DEFAULT);
+			} catch (IOException e) {
+				e.printStackTrace();
+				throw new ESQueryException();
+			}
+
+			if (searchResponse.getHits().getHits().length == 0) {
 				break;
 			}
 		}
@@ -581,13 +692,27 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	 * @return total de hits.
 	 */
 
+	// TODO: Cambiar a CountRequest en próximas versiones
 	public Integer getCount(BoolQueryBuilder queryBuilder) {
 
-		SearchRequestBuilder queryCount = ESProvider.getClient().prepareSearch(INDEX).setTypes(TYPE).setSize(0);
-		if (queryBuilder != null)
-			queryCount.setQuery(queryBuilder);
+		SearchRequest searchRequest = new SearchRequest(INDEX);
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		if (queryBuilder == null)
+			queryBuilder = QueryBuilders.boolQuery().filter(QueryBuilders.matchAllQuery());
 
-		long result = queryCount.execute().actionGet().getHits().getTotalHits();
+		searchSourceBuilder.query(queryBuilder);
+		searchSourceBuilder.size(0);
+		searchRequest.source(searchSourceBuilder);
+
+		SearchResponse queryCount;
+		try {
+			queryCount = ESProvider.getClient().search(searchRequest, RequestOptions.DEFAULT);
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new ESQueryException();
+		}
+
+		long result = queryCount.getHits().getTotalHits();
 
 		return (int) result;
 	}
@@ -756,7 +881,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		return INDEX;
 	}
 
-	public String[] getType() {
+	public String getType() {
 		return TYPE;
 	}
 }
