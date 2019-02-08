@@ -15,11 +15,10 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.ToXContentObject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentHelper;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -27,7 +26,7 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.BaseAggregationBuilder;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms.Order;
+import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
@@ -139,6 +138,7 @@ public class ElasticSearchUtils {
 	/*
 	 * Pasa la respuesta map
 	 */
+	@SuppressWarnings("unchecked")
 	public static Map<String, Object> searchResponsetoObject(SearchResponse response) {
 
 		XContentBuilder builder;
@@ -148,7 +148,7 @@ public class ElasticSearchUtils {
 			response.innerToXContent(builder, ToXContentObject.EMPTY_PARAMS);
 			builder.endObject();
 
-			return XContentHelper.convertToMap(builder.bytes(), true, XContentType.JSON).v2();
+			return jMapper.readValue(Strings.toString(builder), Map.class);
 
 		} catch (IOException e) {
 			throw new ESParseException(e);
@@ -194,7 +194,7 @@ public class ElasticSearchUtils {
 					if (item.getMinCount() != 1)
 						term.minDocCount(item.getMinCount());
 
-					term.order(Order.term(true));
+					term.order(BucketOrder.key(true));
 
 					if (item.getSize() != null)
 						term.size(item.getSize());

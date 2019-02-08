@@ -25,7 +25,7 @@ public abstract class RDataESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	public RDataESRepository() {
 	}
 
-	public RDataESRepository(String[] index, String[] type) {
+	public RDataESRepository(String[] index, String type) {
 		super(index, type);
 	}
 
