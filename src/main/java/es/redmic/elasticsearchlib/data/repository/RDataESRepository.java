@@ -1,10 +1,14 @@
 package es.redmic.elasticsearchlib.data.repository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.elasticsearch.action.get.MultiGetResponse;
+import org.elasticsearch.action.search.MultiSearchResponse;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
@@ -73,6 +77,19 @@ public abstract class RDataESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	public DataSearchWrapper<?> find(TQueryDTO queryDTO) {
 
 		return searchResponseToWrapper(searchRequest(queryDTO), getSourceType(DataSearchWrapper.class));
+	}
+
+	public List<DataSearchWrapper<?>> multiFind(List<SearchSourceBuilder> searchs) {
+
+		List<DataSearchWrapper<?>> results = new ArrayList<DataSearchWrapper<?>>();
+
+		MultiSearchResponse resultRequest = getMultiFindResponses(searchs);
+
+		for (MultiSearchResponse.Item item : resultRequest.getResponses()) {
+			SearchResponse response = item.getResponse();
+			results.add(searchResponseToWrapper(response, getSourceType(DataSearchWrapper.class)));
+		}
+		return results;
 	}
 
 	@Override
