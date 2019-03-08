@@ -97,7 +97,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	protected Integer SUGGESTSIZE = 10;
 
-	protected Integer MAX_SIZE = 100000;
+	protected Integer MAX_SIZE = 10000;
 
 	@Autowired
 	protected ObjectMapper objectMapper;
@@ -273,6 +273,15 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	 */
 	protected boolean indexNoExistResponse(org.elasticsearch.action.search.MultiSearchResponse.Item[] responses) {
 		return responses[0].isFailure() && responses[0].getFailure().getMessage().contains("no such index");
+	}
+
+	/*
+	 * Función para obtener el índice a partir del indice original + un campo de los
+	 * datos Solo en series temporales, en otros casos, devolver directamente el
+	 * índice.
+	 */
+	protected String getIndex(TModel modelToIndex) {
+		return getIndex()[0];
 	}
 
 	protected abstract JavaType getSourceType(Class<?> wrapperClass);
