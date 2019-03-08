@@ -10,6 +10,7 @@ import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -18,7 +19,9 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
+import org.elasticsearch.client.RestClientBuilder.RequestConfigCallback;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +43,8 @@ public class EsClientProvider {
 	private String user;
 	@Value("${elastic.password}")
 	private String password;
+
+	int timeout = 60000;
 
 	protected static Logger logger = LogManager.getLogger();
 
@@ -65,15 +70,30 @@ public class EsClientProvider {
 		final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
 		credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
 
-		client = new RestHighLevelClient(
-				RestClient.builder(hosts).setHttpClientConfigCallback(new HttpClientConfigCallback() {
-					@Override
-					public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
-						return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
-					}
-				}));
+		client = new RestHighLevelClient(RestClient.builder(hosts).setRequestConfigCallback(getRequestConfigCallback())
+				.setMaxRetryTimeoutMillis(timeout)
+				.setHttpClientConfigCallback(getHttpClientConfigCallback(credentialsProvider)));
 
 		checkClusterHealth();
+	}
+
+	private RequestConfigCallback getRequestConfigCallback() {
+
+		return new RestClientBuilder.RequestConfigCallback() {
+			@Override
+			public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder requestConfigBuilder) {
+				return requestConfigBuilder.setSocketTimeout(timeout);
+			}
+		};
+	}
+
+	private HttpClientConfigCallback getHttpClientConfigCallback(CredentialsProvider credentialsProvider) {
+		return new HttpClientConfigCallback() {
+			@Override
+			public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
+				return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+			}
+		};
 	}
 
 	private void checkClusterHealth() {
