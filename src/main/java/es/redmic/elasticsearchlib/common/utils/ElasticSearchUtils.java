@@ -236,6 +236,12 @@ public class ElasticSearchUtils {
 		return null;
 	}
 
+	@SuppressWarnings("unchecked")
+	public static Map<String, Object> getMapValue(Map<String, Object> obj, String key) {
+
+		return (Map<String, Object>) obj.get(key);
+	}
+
 	// TODO: realizar esta acción dependiendo del tipo de modelo. Solo añadir si
 	// es necesario
 	public static String[] getReturnFields(List<String> fields) {
