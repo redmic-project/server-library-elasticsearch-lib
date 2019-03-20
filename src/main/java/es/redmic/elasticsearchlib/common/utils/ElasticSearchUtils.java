@@ -236,6 +236,29 @@ public class ElasticSearchUtils {
 		return null;
 	}
 
+	/**
+	 * Función para extraer las estadísticas del resultado de la agregación
+	 * 
+	 * @param obj:
+	 *            Resultado de la agregación
+	 * @param key:
+	 *            clave del map donde se encuentran las estadísticas (debe estar a
+	 *            primer nivel)
+	 * @param clazz:
+	 *            clase donde mapear los datos
+	 * 
+	 * @return Objeto de tipo clazz con los datos de las estadísticas.
+	 */
+	public static Object getStatsFromAggregation(Map<String, Object> obj, String key, Class<?> clazz) {
+
+		try {
+			return jMapper.readValue(jMapper.writeValueAsString(getMapValue(obj, key)), clazz);
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
 	@SuppressWarnings("unchecked")
 	public static Map<String, Object> getMapValue(Map<String, Object> obj, String key) {
 
