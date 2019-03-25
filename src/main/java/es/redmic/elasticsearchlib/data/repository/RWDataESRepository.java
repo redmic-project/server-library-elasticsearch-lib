@@ -23,6 +23,10 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 		super(index, type);
 	}
 
+	public RWDataESRepository(String[] index, String type, Boolean rollOverIndex) {
+		super(index, type, rollOverIndex);
+	}
+
 	@Override
 	public EventApplicationResult save(TModel modelToIndex) {
 
@@ -32,7 +36,8 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 			return checkInsert;
 		}
 
-		return elasticPersistenceUtils.save(getIndex()[0], getType(), modelToIndex, modelToIndex.getId().toString());
+		return elasticPersistenceUtils.save(getIndex(modelToIndex), getType(), modelToIndex,
+				modelToIndex.getId().toString());
 	}
 
 	@Override
@@ -44,7 +49,8 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 			return checkUpdate;
 		}
 
-		return elasticPersistenceUtils.update(getIndex()[0], getType(), modelToIndex, modelToIndex.getId().toString());
+		return elasticPersistenceUtils.update(getIndex(modelToIndex), getType(), modelToIndex,
+				modelToIndex.getId().toString());
 	}
 
 	@Override
