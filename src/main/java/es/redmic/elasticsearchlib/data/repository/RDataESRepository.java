@@ -33,6 +33,10 @@ public abstract class RDataESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		super(index, type);
 	}
 
+	public RDataESRepository(String[] index, String type, Boolean rollOverIndex) {
+		super(index, type, rollOverIndex);
+	}
+
 	public DataHitWrapper<?> findById(String id) {
 
 		return getResponseToWrapper(getRequest(id), getSourceType(DataHitWrapper.class));
