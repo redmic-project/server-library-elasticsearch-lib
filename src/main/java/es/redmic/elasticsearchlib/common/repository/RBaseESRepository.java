@@ -41,6 +41,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.BaseAggregationBuilder;
+import org.elasticsearch.search.aggregations.PipelineAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.elasticsearch.search.sort.SortBuilder;
@@ -544,7 +545,10 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		if (aggs != null) {
 			for (BaseAggregationBuilder term : aggs) {
-				searchSourceBuilder.aggregation((AggregationBuilder) term);
+				if (term instanceof AggregationBuilder)
+					searchSourceBuilder.aggregation((AggregationBuilder) term);
+				if (term instanceof PipelineAggregationBuilder)
+					searchSourceBuilder.aggregation((PipelineAggregationBuilder) term);
 			}
 		}
 
