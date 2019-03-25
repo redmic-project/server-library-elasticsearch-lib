@@ -13,7 +13,7 @@
 	<groupId>es.redmic.lib</groupId>
 	<artifactId>elasticsearch-lib</artifactId>
 	<packaging>jar</packaging>
-	<version>0.8.0</version>
+	<version>0.9.0</version>
 	<name>elasticsearch-lib</name>
 
 	<properties>
