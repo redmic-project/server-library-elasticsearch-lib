@@ -53,6 +53,8 @@ public abstract class DataQueryUtils extends SimpleQueryUtils {
 
 		addMustTermIfExist(query, getBBoxQuery(queryDTO.getBbox()));
 
+		addMustTermIfExist(query, getActivityIdQuery(queryDTO.getActivityId()));
+
 		return getResultQuery(query);
 	}
 
@@ -66,6 +68,14 @@ public abstract class DataQueryUtils extends SimpleQueryUtils {
 			return QueryBuilders.geoBoundingBoxQuery("geometry").setCorners(topLeft, bottomRight);
 		}
 		return null;
+	}
+
+	protected static QueryBuilder getActivityIdQuery(String activityId) {
+
+		if (activityId == null)
+			return null;
+
+		return QueryBuilders.termQuery("activityId", activityId);
 	}
 
 	protected static QueryBuilder getPrecisionQuery(PrecisionQueryDTO precision) {

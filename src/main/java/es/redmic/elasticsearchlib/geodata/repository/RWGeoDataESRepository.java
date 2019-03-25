@@ -84,13 +84,4 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 	 * cumplen. Por ejemplo que no esté referenciado en otros servicios.
 	 */
 	protected abstract EventApplicationResult checkDeleteConstraintsFulfilled(String modelToIndex);
-
-	/*
-	 * Función para obtener el índice a partir del indice original + un campo de los
-	 * datos Solo en series temporales, en otros casos, devolver directamente el
-	 * índice.
-	 */
-	protected String getIndex(TModel modelToIndex) {
-		return getIndex()[0];
-	};
 }
