@@ -32,6 +32,9 @@
 		<elasticsearch.version>6.5.1</elasticsearch.version>
 		<jts-core.version>1.16.0</jts-core.version>
 		<spatial4j.version>0.7</spatial4j.version>
+		
+		<!-- Version plugins -->
+		<jacoco.version>0.8.1</jacoco.version>
 
 		<!-- Environment variables -->
 		<env.MAVEN_REPO_URL>https://artifactory.redmic.net/artifactory</env.MAVEN_REPO_URL>
@@ -104,4 +107,28 @@
 			<uniqueVersion>false</uniqueVersion>
 		</snapshotRepository>
 	</distributionManagement>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<executions>
+					<execution>
+						<id>pre-unit-test</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>post-unit-test</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>
