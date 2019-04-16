@@ -3,9 +3,9 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.1.0.RELEASE</version>
+		<groupId>es.redmic</groupId>
+		<artifactId>server-parent</artifactId>
+		<version>0.3.0</version>
 		<relativePath />
 	</parent>
 
@@ -13,16 +13,10 @@
 	<groupId>es.redmic.lib</groupId>
 	<artifactId>elasticsearch-lib</artifactId>
 	<packaging>jar</packaging>
-	<version>0.9.0-feature-updateCI</version>
+	<version>0.9.0-feature-applyLicense</version>
 	<name>elasticsearch-lib</name>
 
 	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<maven.compiler.source>1.8</maven.compiler.source>
-		<maven.compiler.target>1.8</maven.compiler.target>
-		<java.version>1.8</java.version>
-
 		<!-- REDMIC -->
 		<redmic.exceptions.version>0.8.0</redmic.exceptions.version>
 		<redmic.models.version>0.9.1</redmic.models.version>
@@ -32,9 +26,6 @@
 		<elasticsearch.version>6.5.1</elasticsearch.version>
 		<jts-core.version>1.16.0</jts-core.version>
 		<spatial4j.version>0.7</spatial4j.version>
-		
-		<!-- Version plugins -->
-		<jacoco.version>0.8.1</jacoco.version>
 	</properties>
 
 	<dependencies>
@@ -108,28 +99,4 @@
 			<url>http://download.osgeo.org/webdav/geotools/</url>
 		</repository>
 	</repositories>
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.jacoco</groupId>
-				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>${jacoco.version}</version>
-				<executions>
-					<execution>
-						<id>pre-unit-test</id>
-						<goals>
-							<goal>prepare-agent</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>post-unit-test</id>
-						<phase>test</phase>
-						<goals>
-							<goal>report</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 </project>
