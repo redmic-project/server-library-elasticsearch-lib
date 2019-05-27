@@ -63,6 +63,10 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 	protected static String SCRIPT_ENGINE = "groovy";
 
 	public EventApplicationResult save(String index, String type, TModel model, String id) {
+		return save(index, type, model, id, null);
+	}
+
+	public EventApplicationResult save(String index, String type, TModel model, String id, String parentId) {
 
 		// @formatter:off
 		
@@ -70,6 +74,10 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				.source(convertTModelToSource(model))
 				.id(id)
 				.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+		
+		if (parentId != null) {
+			request.parent(parentId);
+		}
 		
 		// @formatter:on
 
@@ -84,6 +92,10 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 	}
 
 	public EventApplicationResult update(String index, String type, TModel model, String id) {
+		return update(index, type, model, id, null);
+	}
+
+	public EventApplicationResult update(String index, String type, TModel model, String id, String parentId) {
 
 		// @formatter:off
 
@@ -92,6 +104,10 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				.fetchSource(false)
 				.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
+		if (parentId != null) {
+			updateRequest.parent(parentId);
+		}
+		
 		// @formatter:on
 
 		try {
@@ -108,6 +124,11 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	public EventApplicationResult update(String index, String type, String id, XContentBuilder doc) {
 
+		return update(index, type, id, null, doc);
+	}
+
+	public EventApplicationResult update(String index, String type, String id, String parentId, XContentBuilder doc) {
+
 		// @formatter:off
 		
 		UpdateRequest updateRequest = new UpdateRequest(index, type, id)
@@ -116,6 +137,10 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				.fetchSource(true);
 		
 		// @formatter:on
+
+		if (parentId != null) {
+			updateRequest.parent(parentId);
+		}
 
 		try {
 			ESProvider.getClient().update(updateRequest, RequestOptions.DEFAULT);
@@ -129,7 +154,16 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	public EventApplicationResult delete(String index, String type, String id) {
 
+		return delete(index, type, id, null);
+	}
+
+	public EventApplicationResult delete(String index, String type, String id, String parentId) {
+
 		DeleteRequest deleteRequest = new DeleteRequest(index, type, id).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+
+		if (parentId != null) {
+			deleteRequest.parent(parentId);
+		}
 
 		try {
 			ESProvider.getClient().delete(deleteRequest, RequestOptions.DEFAULT);
