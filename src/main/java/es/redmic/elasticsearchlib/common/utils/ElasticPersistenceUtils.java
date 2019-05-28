@@ -76,7 +76,7 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 		
 		if (parentId != null) {
-			request.parent(parentId);
+			request.routing(parentId);
 		}
 		
 		// @formatter:on
@@ -105,7 +105,7 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
 		if (parentId != null) {
-			updateRequest.parent(parentId);
+			updateRequest.routing(parentId);
 		}
 		
 		// @formatter:on
@@ -139,7 +139,7 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 		// @formatter:on
 
 		if (parentId != null) {
-			updateRequest.parent(parentId);
+			updateRequest.routing(parentId);
 		}
 
 		try {
@@ -162,7 +162,7 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 		DeleteRequest deleteRequest = new DeleteRequest(index, type, id).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
 		if (parentId != null) {
-			deleteRequest.parent(parentId);
+			deleteRequest.routing(parentId);
 		}
 
 		try {
@@ -181,17 +181,11 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	public List<UpdateRequest> getUpdateRequest(String[] index, String[] type, String id, Map<String, Object> fields) {
 
-		return getUpdateRequest(index, type, id, fields, null, null);
+		return getUpdateRequest(index, type, id, fields, null);
 	}
 
 	public List<UpdateRequest> getUpdateRequest(String[] index, String[] type, String id, Map<String, Object> fields,
 			String parentId) {
-
-		return getUpdateRequest(index, type, id, fields, parentId, null);
-	}
-
-	public List<UpdateRequest> getUpdateRequest(String[] index, String[] type, String id, Map<String, Object> fields,
-			String parentId, String grandParentId) {
 
 		List<UpdateRequest> result = new ArrayList<UpdateRequest>();
 
@@ -203,10 +197,7 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				updateRequest.id(id);
 				updateRequest.fetchSource(true);
 				if (parentId != null)
-					updateRequest.parent(grandParentId);
-
-				if (grandParentId != null)
-					updateRequest.routing(grandParentId);
+					updateRequest.routing(parentId);
 
 				updateRequest.doc(fields);
 				result.add(updateRequest);
