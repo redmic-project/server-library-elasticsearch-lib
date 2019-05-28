@@ -61,6 +61,11 @@ public abstract class RDataESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		return getResponseToWrapper(getRequest(id), getSourceType(DataHitWrapper.class));
 	}
+	
+	public DataHitWrapper<?> findById(String id, String parentId) {
+
+		return getResponseToWrapper(getRequest(id, parentId), getSourceType(DataHitWrapper.class));
+	}
 
 	public DataSearchWrapper<?> searchByIds(String[] ids) {
 		return findBy(QueryBuilders.idsQuery().addIds(ids));
