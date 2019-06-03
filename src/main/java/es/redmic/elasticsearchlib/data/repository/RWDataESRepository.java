@@ -33,7 +33,7 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 		extends RDataESRepository<TModel, TQueryDTO> implements IRWBaseESRepository<TModel> {
 
 	@Autowired
-	ElasticPersistenceUtils<TModel> elasticPersistenceUtils;
+	ElasticPersistenceUtils elasticPersistenceUtils;
 
 	public RWDataESRepository() {
 		super();

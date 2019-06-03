@@ -47,10 +47,9 @@ import es.redmic.elasticsearchlib.config.EsClientProvider;
 import es.redmic.exception.common.ExceptionType;
 import es.redmic.exception.elasticsearch.ESUpdateException;
 import es.redmic.models.es.common.dto.EventApplicationResult;
-import es.redmic.models.es.common.model.BaseES;
 
 @Component
-public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
+public class ElasticPersistenceUtils {
 
 	protected static Logger logger = LogManager.getLogger();
 
@@ -62,11 +61,11 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	protected static String SCRIPT_ENGINE = "groovy";
 
-	public EventApplicationResult save(String index, String type, TModel model, String id) {
+	public <TModel> EventApplicationResult save(String index, String type, TModel model, String id) {
 		return save(index, type, model, id, null);
 	}
 
-	public EventApplicationResult save(String index, String type, TModel model, String id, String parentId) {
+	public <TModel> EventApplicationResult save(String index, String type, TModel model, String id, String parentId) {
 
 		// @formatter:off
 		
@@ -91,11 +90,11 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 		}
 	}
 
-	public EventApplicationResult update(String index, String type, TModel model, String id) {
+	public <TModel> EventApplicationResult update(String index, String type, TModel model, String id) {
 		return update(index, type, model, id, null);
 	}
 
-	public EventApplicationResult update(String index, String type, TModel model, String id, String parentId) {
+	public <TModel> EventApplicationResult update(String index, String type, TModel model, String id, String parentId) {
 
 		// @formatter:off
 
@@ -175,7 +174,7 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 	}
 
 	@SuppressWarnings("unchecked")
-	protected Map<String, Object> convertTModelToSource(TModel modelToIndex) {
+	protected <TModel> Map<String, Object> convertTModelToSource(TModel modelToIndex) {
 		return objectMapper.convertValue(modelToIndex, Map.class);
 	}
 
