@@ -558,7 +558,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			}
 		}
 
-		if (queryDTO.getText() != null && (queryDTO.getText().getHighlightFields() == null
+		if (queryDTO.getText() != null && !(queryDTO.getText().getHighlightFields() == null
 				|| queryDTO.getText().getHighlightFields().length == 0)) {
 
 			searchSourceBuilder
