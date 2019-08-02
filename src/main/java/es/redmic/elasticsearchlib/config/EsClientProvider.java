@@ -111,7 +111,7 @@ public class EsClientProvider {
 		return new HttpClientConfigCallback() {
 			@Override
 			public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
-				return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+				return httpClientBuilder.disableAuthCaching().setDefaultCredentialsProvider(credentialsProvider);
 			}
 		};
 	}
