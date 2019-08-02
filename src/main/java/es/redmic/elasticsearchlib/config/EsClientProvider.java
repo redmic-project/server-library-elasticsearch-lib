@@ -109,9 +109,13 @@ public class EsClientProvider {
 
 	private HttpClientConfigCallback getHttpClientConfigCallback(CredentialsProvider credentialsProvider) {
 		return new HttpClientConfigCallback() {
+
+			private static final int KEEP_ALIVE_MS = 20 * 60 * 1000; // 20 minutes
+
 			@Override
 			public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
-				return httpClientBuilder.disableAuthCaching().setDefaultCredentialsProvider(credentialsProvider);
+				return httpClientBuilder.setKeepAliveStrategy((response, context) -> KEEP_ALIVE_MS)
+						.setDefaultCredentialsProvider(credentialsProvider);
 			}
 		};
 	}
