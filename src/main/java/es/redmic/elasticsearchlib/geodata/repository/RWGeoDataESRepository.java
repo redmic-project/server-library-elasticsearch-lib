@@ -33,7 +33,7 @@ public abstract class RWGeoDataESRepository<TModel extends Feature<?, ?>, TQuery
 		extends RGeoDataESRepository<TModel, TQueryDTO> implements IRWBaseESRepository<TModel> {
 
 	@Autowired
-	ElasticPersistenceUtils<TModel> elasticPersistenceUtils;
+	ElasticPersistenceUtils elasticPersistenceUtils;
 
 	public RWGeoDataESRepository(String[] index, String type, Boolean rollOverIndex) {
 		super(index, type, rollOverIndex);
