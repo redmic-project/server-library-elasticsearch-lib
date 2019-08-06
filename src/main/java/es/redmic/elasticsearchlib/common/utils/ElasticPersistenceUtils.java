@@ -47,10 +47,9 @@ import es.redmic.elasticsearchlib.config.EsClientProvider;
 import es.redmic.exception.common.ExceptionType;
 import es.redmic.exception.elasticsearch.ESUpdateException;
 import es.redmic.models.es.common.dto.EventApplicationResult;
-import es.redmic.models.es.common.model.BaseES;
 
 @Component
-public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
+public class ElasticPersistenceUtils {
 
 	protected static Logger logger = LogManager.getLogger();
 
@@ -62,7 +61,11 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	protected static String SCRIPT_ENGINE = "groovy";
 
-	public EventApplicationResult save(String index, String type, TModel model, String id) {
+	public <TModel> EventApplicationResult save(String index, String type, TModel model, String id) {
+		return save(index, type, model, id, null);
+	}
+
+	public <TModel> EventApplicationResult save(String index, String type, TModel model, String id, String parentId) {
 
 		// @formatter:off
 		
@@ -70,6 +73,10 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				.source(convertTModelToSource(model))
 				.id(id)
 				.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+		
+		if (parentId != null) {
+			request.routing(parentId);
+		}
 		
 		// @formatter:on
 
@@ -83,7 +90,11 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 		}
 	}
 
-	public EventApplicationResult update(String index, String type, TModel model, String id) {
+	public <TModel> EventApplicationResult update(String index, String type, TModel model, String id) {
+		return update(index, type, model, id, null);
+	}
+
+	public <TModel> EventApplicationResult update(String index, String type, TModel model, String id, String parentId) {
 
 		// @formatter:off
 
@@ -92,6 +103,10 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				.fetchSource(false)
 				.setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
+		if (parentId != null) {
+			updateRequest.routing(parentId);
+		}
+		
 		// @formatter:on
 
 		try {
@@ -108,6 +123,11 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	public EventApplicationResult update(String index, String type, String id, XContentBuilder doc) {
 
+		return update(index, type, id, null, doc);
+	}
+
+	public EventApplicationResult update(String index, String type, String id, String parentId, XContentBuilder doc) {
+
 		// @formatter:off
 		
 		UpdateRequest updateRequest = new UpdateRequest(index, type, id)
@@ -116,6 +136,10 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				.fetchSource(true);
 		
 		// @formatter:on
+
+		if (parentId != null) {
+			updateRequest.routing(parentId);
+		}
 
 		try {
 			ESProvider.getClient().update(updateRequest, RequestOptions.DEFAULT);
@@ -129,7 +153,16 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 
 	public EventApplicationResult delete(String index, String type, String id) {
 
+		return delete(index, type, id, null);
+	}
+
+	public EventApplicationResult delete(String index, String type, String id, String parentId) {
+
 		DeleteRequest deleteRequest = new DeleteRequest(index, type, id).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+
+		if (parentId != null) {
+			deleteRequest.routing(parentId);
+		}
 
 		try {
 			ESProvider.getClient().delete(deleteRequest, RequestOptions.DEFAULT);
@@ -141,23 +174,17 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 	}
 
 	@SuppressWarnings("unchecked")
-	protected Map<String, Object> convertTModelToSource(TModel modelToIndex) {
+	protected <TModel> Map<String, Object> convertTModelToSource(TModel modelToIndex) {
 		return objectMapper.convertValue(modelToIndex, Map.class);
 	}
 
 	public List<UpdateRequest> getUpdateRequest(String[] index, String[] type, String id, Map<String, Object> fields) {
 
-		return getUpdateRequest(index, type, id, fields, null, null);
+		return getUpdateRequest(index, type, id, fields, null);
 	}
 
 	public List<UpdateRequest> getUpdateRequest(String[] index, String[] type, String id, Map<String, Object> fields,
 			String parentId) {
-
-		return getUpdateRequest(index, type, id, fields, parentId, null);
-	}
-
-	public List<UpdateRequest> getUpdateRequest(String[] index, String[] type, String id, Map<String, Object> fields,
-			String parentId, String grandParentId) {
 
 		List<UpdateRequest> result = new ArrayList<UpdateRequest>();
 
@@ -169,10 +196,7 @@ public class ElasticPersistenceUtils<TModel extends BaseES<?>> {
 				updateRequest.id(id);
 				updateRequest.fetchSource(true);
 				if (parentId != null)
-					updateRequest.parent(grandParentId);
-
-				if (grandParentId != null)
-					updateRequest.routing(grandParentId);
+					updateRequest.routing(parentId);
 
 				updateRequest.doc(fields);
 				result.add(updateRequest);

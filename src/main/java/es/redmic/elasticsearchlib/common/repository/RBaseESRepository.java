@@ -308,14 +308,10 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	protected abstract JavaType getSourceType(Class<?> wrapperClass);
 
 	protected GetResponse getRequest(String id) {
-		return getRequest(id, null, null);
+		return getRequest(id, null);
 	}
 
 	protected GetResponse getRequest(String id, String parentId) {
-		return getRequest(id, parentId, null);
-	}
-
-	protected GetResponse getRequest(String id, String parentId, String grandparentId) {
 
 		LOGGER.debug("FindById en " + getIndex() + " " + getType() + " con id " + id);
 
@@ -324,10 +320,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			GetRequest getRequest = new GetRequest(getIndex()[i], getType(), id.toString());
 
 			if (parentId != null) {
-				getRequest.parent(parentId);
-			}
-			if (grandparentId != null) {
-				getRequest.routing(grandparentId);
+				getRequest.routing(parentId);
 			}
 
 			GetResponse response;
@@ -335,7 +328,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 				response = ESProvider.getClient().get(getRequest, RequestOptions.DEFAULT);
 			} catch (IOException e) {
 				e.printStackTrace();
-				throw new ItemNotFoundException("id", id + " en el servicio " + getType());
+				throw new ItemNotFoundException("id", id + " en el servicio " + getIndex()[i] + " - " + getType());
 			}
 
 			if (response != null && response.isExists()) {
@@ -343,7 +336,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			}
 		}
 
-		throw new ItemNotFoundException("id", id + " en el servicio " + getType());
+		throw new ItemNotFoundException("id", id + " en el servicio " + getIndex()[0] + " - " + getType());
 	}
 
 	public List<String> suggest(TQueryDTO queryDTO) {
@@ -412,11 +405,6 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	protected MultiGetResponse multigetRequest(MgetDTO dto, String parentId) {
 
-		return multigetRequest(dto, parentId, null);
-	}
-
-	protected MultiGetResponse multigetRequest(MgetDTO dto, String parentId, String grandParentId) {
-
 		LOGGER.debug("Mget en " + getIndex() + " " + getType() + " con fields " + dto.getFields() + " e ids "
 				+ dto.getIds());
 
@@ -438,11 +426,9 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 				Item item = new Item(getIndex()[i], getType(), dto.getIds().get(k));
 
 				if (parentId != null) {
-					item.parent(parentId);
+					item.routing(parentId);
 				}
-				if (grandParentId != null) {
-					item.routing(grandParentId);
-				}
+
 				item.fetchSourceContext(fetchSourceContext);
 				request.add(item);
 			}
@@ -572,7 +558,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			}
 		}
 
-		if (queryDTO.getText() != null && (queryDTO.getText().getHighlightFields() == null
+		if (queryDTO.getText() != null && !(queryDTO.getText().getHighlightFields() == null
 				|| queryDTO.getText().getHighlightFields().length == 0)) {
 
 			searchSourceBuilder

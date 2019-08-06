@@ -29,9 +29,17 @@ public interface IRWBaseESRepository<TModel extends BaseES<?>> {
 
 	EventApplicationResult save(TModel modelToIndex);
 
+	EventApplicationResult save(TModel modelToIndex, String parentId);
+
 	EventApplicationResult update(TModel modelToIndex);
+
+	EventApplicationResult update(TModel modelToIndex, String parentId);
 
 	EventApplicationResult update(String id, XContentBuilder doc);
 
+	EventApplicationResult update(String id, String parentId, XContentBuilder doc);
+
 	EventApplicationResult delete(String id);
+
+	EventApplicationResult delete(String id, String parentId);
 }

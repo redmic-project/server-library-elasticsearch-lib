@@ -33,7 +33,7 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 		extends RDataESRepository<TModel, TQueryDTO> implements IRWBaseESRepository<TModel> {
 
 	@Autowired
-	ElasticPersistenceUtils<TModel> elasticPersistenceUtils;
+	ElasticPersistenceUtils elasticPersistenceUtils;
 
 	public RWDataESRepository() {
 		super();
@@ -50,6 +50,12 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 	@Override
 	public EventApplicationResult save(TModel modelToIndex) {
 
+		return save(modelToIndex, null);
+	}
+
+	@Override
+	public EventApplicationResult save(TModel modelToIndex, String parentId) {
+
 		EventApplicationResult checkInsert = checkInsertConstraintsFulfilled(modelToIndex);
 
 		if (!checkInsert.isSuccess()) {
@@ -57,11 +63,17 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 		}
 
 		return elasticPersistenceUtils.save(getIndex(modelToIndex), getType(), modelToIndex,
-				modelToIndex.getId().toString());
+				modelToIndex.getId().toString(), parentId);
 	}
 
 	@Override
 	public EventApplicationResult update(TModel modelToIndex) {
+
+		return update(modelToIndex, null);
+	}
+
+	@Override
+	public EventApplicationResult update(TModel modelToIndex, String parentId) {
 
 		EventApplicationResult checkUpdate = checkUpdateConstraintsFulfilled(modelToIndex);
 
@@ -70,17 +82,29 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 		}
 
 		return elasticPersistenceUtils.update(getIndex(modelToIndex), getType(), modelToIndex,
-				modelToIndex.getId().toString());
+				modelToIndex.getId().toString(), parentId);
 	}
 
 	@Override
 	public EventApplicationResult update(String id, XContentBuilder doc) {
 
-		return elasticPersistenceUtils.update(getIndex()[0], getType(), id, doc);
+		return update(id, null, doc);
+	}
+
+	@Override
+	public EventApplicationResult update(String id, String parentId, XContentBuilder doc) {
+
+		return elasticPersistenceUtils.update(getIndex()[0], getType(), id, parentId, doc);
 	}
 
 	@Override
 	public EventApplicationResult delete(String id) {
+
+		return delete(id, null);
+	}
+
+	@Override
+	public EventApplicationResult delete(String id, String parentId) {
 
 		EventApplicationResult checkDelete = checkDeleteConstraintsFulfilled(id);
 
@@ -88,7 +112,7 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 			return checkDelete;
 		}
 
-		return elasticPersistenceUtils.delete(getIndex()[0], getType(), id);
+		return elasticPersistenceUtils.delete(getIndex()[0], getType(), id, parentId);
 	}
 
 	/*
