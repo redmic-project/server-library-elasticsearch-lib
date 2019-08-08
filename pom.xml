@@ -13,7 +13,7 @@
 	<groupId>es.redmic.lib</groupId>
 	<artifactId>elasticsearch-lib</artifactId>
 	<packaging>jar</packaging>
-	<version>0.11.0</version>
+	<version>0.11.0-feature-ChangeTimeSeriesIndexPattern</version>
 	<name>elasticsearch-lib</name>
 
 	<properties>
