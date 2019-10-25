@@ -42,4 +42,6 @@ public interface IRWBaseESRepository<TModel extends BaseES<?>> {
 	EventApplicationResult delete(String id);
 
 	EventApplicationResult delete(String id, String parentId);
+
+	EventApplicationResult rollback(TModel modelToIndex, String id);
 }

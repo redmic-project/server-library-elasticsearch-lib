@@ -25,9 +25,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import es.redmic.elasticsearchlib.common.repository.IRWBaseESRepository;
 import es.redmic.elasticsearchlib.common.utils.ElasticPersistenceUtils;
+import es.redmic.exception.data.ItemNotFoundException;
 import es.redmic.models.es.common.dto.EventApplicationResult;
 import es.redmic.models.es.common.model.BaseES;
 import es.redmic.models.es.common.query.dto.SimpleQueryDTO;
+import es.redmic.models.es.data.common.model.DataHitWrapper;
 
 public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO extends SimpleQueryDTO>
 		extends RDataESRepository<TModel, TQueryDTO> implements IRWBaseESRepository<TModel> {
@@ -114,6 +116,37 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 
 		return elasticPersistenceUtils.delete(getIndex()[0], getType(), id, parentId);
 	}
+
+	@Override
+	public EventApplicationResult rollback(TModel modelToIndex, String id) {
+
+		return rollback(modelToIndex, id, null);
+	}
+
+	@SuppressWarnings("unchecked")
+	public EventApplicationResult rollback(TModel modelToIndex, String id, String parentId) {
+
+		// rollback de un insert
+		if (modelToIndex == null) {
+			return delete(id, parentId);
+		}
+
+		// rollback de un delete
+		DataHitWrapper<?> currentRecord;
+		try {
+			currentRecord = findById(id, parentId);
+		} catch (ItemNotFoundException e) {
+			return save(modelToIndex, parentId);
+		}
+
+		// rollback de un update
+		if (rollbackIsRequired((TModel) currentRecord.get_source(), modelToIndex)) {
+			return update((TModel) currentRecord.get_source(), parentId);
+		}
+		return new EventApplicationResult(true);
+	}
+
+	protected abstract boolean rollbackIsRequired(TModel currentModel, TModel modelToIndex);
 
 	/*
 	 * Función que comprueba que las restricciones necesarias para añadir el item se
