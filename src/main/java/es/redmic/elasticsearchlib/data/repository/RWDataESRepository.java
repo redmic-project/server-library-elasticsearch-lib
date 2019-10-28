@@ -141,7 +141,7 @@ public abstract class RWDataESRepository<TModel extends BaseES<?>, TQueryDTO ext
 
 		// rollback de un update
 		if (rollbackIsRequired((TModel) currentRecord.get_source(), modelToIndex)) {
-			return update((TModel) currentRecord.get_source(), parentId);
+			return update(modelToIndex, parentId);
 		}
 		return new EventApplicationResult(true);
 	}
