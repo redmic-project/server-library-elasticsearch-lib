@@ -1,4 +1,4 @@
-package es.redmic.elasticsearchlib.timeseries.repository;
+package es.redmic.elasticsearchlib.series.repository;
 
 /*-
  * #%L
@@ -9,9 +9,9 @@ package es.redmic.elasticsearchlib.timeseries.repository;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,25 +20,26 @@ package es.redmic.elasticsearchlib.timeseries.repository;
  * #L%
  */
 
+import es.redmic.elasticsearchlib.common.repository.RBaseESRepository;
+
 import org.joda.time.format.DateTimeFormat;
 import org.springframework.beans.factory.annotation.Value;
 
-import es.redmic.elasticsearchlib.data.repository.RWDataESRepository;
 import es.redmic.models.es.common.model.BaseTimeDataAbstractES;
 import es.redmic.models.es.common.query.dto.DataQueryDTO;
 
-public abstract class RWTimeSeriesESRepository<TModel extends BaseTimeDataAbstractES, TQueryDTO extends DataQueryDTO>
-		extends RWDataESRepository<TModel, TQueryDTO> implements IBaseTimeSeriesESRepository {
+public abstract class RWSeriesESRepository<TModel extends BaseTimeDataAbstractES, TQueryDTO extends DataQueryDTO>
+		extends RBaseESRepository<TModel, TQueryDTO> implements IBaseTimeSeriesESRepository {
 
 	@Value("${timeseries.index.pattern}")
 	String timeSeriesIndexPattern;
 
-	public RWTimeSeriesESRepository() {
+	protected RWSeriesESRepository() {
 		super(IBaseTimeSeriesESRepository.INDEX, IBaseTimeSeriesESRepository.TYPE, true);
 	}
 
 	@Override
 	protected String getIndex(final TModel modelToIndex) {
-		return getIndex()[0] + "-" + modelToIndex.getDate().toString(DateTimeFormat.forPattern(timeSeriesIndexPattern));
+		return super.getIndex()[0] + "-" + modelToIndex.getDate().toString(DateTimeFormat.forPattern(timeSeriesIndexPattern));
 	}
 }
