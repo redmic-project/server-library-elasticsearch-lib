@@ -21,9 +21,7 @@ package es.redmic.elasticsearchlib.series.repository;
  */
 
 import java.util.List;
-
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-
 import es.redmic.models.es.common.model.BaseAbstractStringES;
 import es.redmic.models.es.common.query.dto.DataQueryDTO;
 import es.redmic.models.es.common.query.dto.MgetDTO;
@@ -31,7 +29,7 @@ import es.redmic.models.es.series.common.model.SeriesHitWrapper;
 import es.redmic.models.es.series.common.model.SeriesHitsWrapper;
 import es.redmic.models.es.series.common.model.SeriesSearchWrapper;
 
-public interface IRSeriesESRepository<TModel extends BaseAbstractStringES> extends IBaseTimeSeriesESRepository {
+public interface IRSeriesESRepository<TModel extends BaseAbstractStringES> extends IBaseSeriesESRepository<TModel> {
 
 	public SeriesHitWrapper<TModel> findById(String id);
 	public SeriesSearchWrapper<TModel> searchByIds(String[] ids);

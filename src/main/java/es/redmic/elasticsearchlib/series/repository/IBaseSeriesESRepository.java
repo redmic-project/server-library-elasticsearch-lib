@@ -24,7 +24,10 @@ import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 
-public interface IBaseTimeSeriesESRepository {
+import es.redmic.models.es.common.dto.EventApplicationResult;
+import es.redmic.models.es.common.model.BaseAbstractStringES;
+
+public interface IBaseSeriesESRepository<TModel extends BaseAbstractStringES> {
 
 	static String[] INDEX = { "timeseries" };
 	static String TYPE = "_doc";
@@ -40,4 +43,10 @@ public interface IBaseTimeSeriesESRepository {
 		return AggregationBuilders.dateHistogram("dateHistogram").field(dateTimeField)
 				.dateHistogramInterval(dateHistogramInterval).minDocCount(minDocCount);
 	}
+
+	EventApplicationResult save(TModel modelToIndex);
+
+	EventApplicationResult update(TModel modelToIndex);
+
+	EventApplicationResult delete(String id);
 }

@@ -20,26 +20,83 @@ package es.redmic.elasticsearchlib.series.repository;
  * #L%
  */
 
-import es.redmic.elasticsearchlib.common.repository.RBaseESRepository;
-
 import org.joda.time.format.DateTimeFormat;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
+import es.redmic.elasticsearchlib.common.utils.ElasticPersistenceUtils;
+import es.redmic.models.es.common.dto.EventApplicationResult;
 import es.redmic.models.es.common.model.BaseTimeDataAbstractES;
 import es.redmic.models.es.common.query.dto.DataQueryDTO;
 
 public abstract class RWSeriesESRepository<TModel extends BaseTimeDataAbstractES, TQueryDTO extends DataQueryDTO>
-		extends RBaseESRepository<TModel, TQueryDTO> implements IBaseTimeSeriesESRepository {
+		extends RSeriesESRepository<TModel, TQueryDTO> {
 
 	@Value("${timeseries.index.pattern}")
 	String timeSeriesIndexPattern;
 
+	@Autowired
+	ElasticPersistenceUtils elasticPersistenceUtils;
+
 	protected RWSeriesESRepository() {
-		super(IBaseTimeSeriesESRepository.INDEX, IBaseTimeSeriesESRepository.TYPE, true);
+		super();
 	}
 
 	@Override
 	protected String getIndex(final TModel modelToIndex) {
-		return super.getIndex()[0] + "-" + modelToIndex.getDate().toString(DateTimeFormat.forPattern(timeSeriesIndexPattern));
+		return timeSeriesIndexPattern + "-" + modelToIndex.getDate().toString(DateTimeFormat.forPattern(timeSeriesIndexPattern));
+	}
+
+	@Override
+	public EventApplicationResult save(TModel modelToIndex) {
+
+		EventApplicationResult checkInsert = checkInsertConstraintsFulfilled(modelToIndex);
+
+		if (!checkInsert.isSuccess()) {
+			return checkInsert;
+		}
+
+		return elasticPersistenceUtils.save(getIndex(modelToIndex), getType(), modelToIndex,
+				modelToIndex.getId());
+	}
+
+	@Override
+	public EventApplicationResult update(TModel modelToIndex) {
+
+		EventApplicationResult checkUpdate = checkUpdateConstraintsFulfilled(modelToIndex);
+
+		if (!checkUpdate.isSuccess()) {
+			return checkUpdate;
+		}
+
+		return elasticPersistenceUtils.update(getIndex(modelToIndex), getType(), modelToIndex,
+				modelToIndex.getId());
+	}
+
+	@Override
+	public EventApplicationResult delete(String id) {
+
+		EventApplicationResult checkDelete = checkDeleteConstraintsFulfilled(id);
+
+		if (!checkDelete.isSuccess()) {
+			return checkDelete;
+		}
+
+		return elasticPersistenceUtils.delete(getIndex()[0], getType(), id);
+	}
+
+	private EventApplicationResult checkUpdateConstraintsFulfilled(TModel modelToIndex) {
+		// TODO Implementar comprobaciones
+		return new EventApplicationResult(true);
+	}
+
+	private EventApplicationResult checkDeleteConstraintsFulfilled(String id) {
+		// TODO Implementar comprobaciones
+		return new EventApplicationResult(true);
+	}
+
+	private EventApplicationResult checkInsertConstraintsFulfilled(TModel modelToIndex) {
+		// TODO Implementar comprobaciones
+		return new EventApplicationResult(true);
 	}
 }

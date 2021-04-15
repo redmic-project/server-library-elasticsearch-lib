@@ -36,8 +36,6 @@ import org.elasticsearch.search.sort.SortOrder;
  * #L%
  */
 
-import org.springframework.beans.factory.annotation.Value;
-
 import es.redmic.elasticsearchlib.common.query.SeriesQueryUtils;
 import es.redmic.elasticsearchlib.common.repository.RBaseESRepository;
 import es.redmic.exception.data.ItemNotFoundException;
@@ -51,13 +49,10 @@ import es.redmic.models.es.series.common.model.SeriesSearchWrapper;
 public abstract class RSeriesESRepository<TModel extends BaseAbstractStringES, TQueryDTO extends DataQueryDTO>
 		extends RBaseESRepository<TModel, TQueryDTO> implements IRSeriesESRepository<TModel> {
 
-	@Value("${timeseries.index.pattern}")
-	protected String timeSeriesIndexPattern;
-
 	private static final String DATADEFINITION_PROPERTY = "dataDefinition";
 
 	protected RSeriesESRepository() {
-		super(IBaseTimeSeriesESRepository.INDEX, IBaseTimeSeriesESRepository.TYPE, true);
+		super(IBaseSeriesESRepository.INDEX, IBaseSeriesESRepository.TYPE, true);
 	}
 
 	@Override
