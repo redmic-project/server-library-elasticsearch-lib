@@ -30,7 +30,7 @@ import es.redmic.models.es.common.model.BaseTimeDataAbstractES;
 import es.redmic.models.es.common.query.dto.DataQueryDTO;
 
 public abstract class RWSeriesESRepository<TModel extends BaseTimeDataAbstractES, TQueryDTO extends DataQueryDTO>
-		extends RSeriesESRepository<TModel, TQueryDTO> {
+		extends RSeriesESRepository<TModel, TQueryDTO> implements IRWSeriesESRepository<TModel> {
 
 	@Value("${timeseries.index.pattern}")
 	String timeSeriesIndexPattern;
@@ -44,7 +44,7 @@ public abstract class RWSeriesESRepository<TModel extends BaseTimeDataAbstractES
 
 	@Override
 	protected String getIndex(final TModel modelToIndex) {
-		return timeSeriesIndexPattern + "-" + modelToIndex.getDate().toString(DateTimeFormat.forPattern(timeSeriesIndexPattern));
+		return getIndex()[0] + "-" + modelToIndex.getDate().toString(DateTimeFormat.forPattern(timeSeriesIndexPattern));
 	}
 
 	@Override

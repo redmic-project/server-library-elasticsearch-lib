@@ -29,7 +29,7 @@ import es.redmic.models.es.series.common.model.SeriesHitWrapper;
 import es.redmic.models.es.series.common.model.SeriesHitsWrapper;
 import es.redmic.models.es.series.common.model.SeriesSearchWrapper;
 
-public interface IRSeriesESRepository<TModel extends BaseAbstractStringES> extends IBaseSeriesESRepository<TModel> {
+public interface IRSeriesESRepository<TModel extends BaseAbstractStringES> extends IBaseSeriesESRepository {
 
 	public SeriesHitWrapper<TModel> findById(String id);
 	public SeriesSearchWrapper<TModel> searchByIds(String[] ids);
