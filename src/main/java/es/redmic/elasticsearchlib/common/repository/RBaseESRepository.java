@@ -518,22 +518,9 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		LOGGER.debug("Find en {} {} con queryDTO {} y query interna.", getIndex(), getType(), queryDTO);
 
-		QueryBuilder termQuery = getTermQuery(queryDTO.getTerms());
-
-		BoolQueryBuilder partialQuery = null;
-		if (serviceQuery != null) {
-			partialQuery = QueryBuilders.boolQuery().must(serviceQuery);
-		}
-
-		if (termQuery != null && partialQuery != null) {
-			partialQuery.must(termQuery);
-		} else if (termQuery != null) {
-			partialQuery = QueryBuilders.boolQuery().must(termQuery);
-		}
-
-		BoolQueryBuilder queryBuilder = getQuery(queryDTO, getInternalQuery(), partialQuery);
-
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+		BoolQueryBuilder queryBuilder = getQueryBuilder(queryDTO, serviceQuery);
 
 		searchSourceBuilder.query(queryBuilder);
 
@@ -543,7 +530,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			searchSourceBuilder.postFilter(postFilter);
 		}
 
-		List<BaseAggregationBuilder> aggs = getAggs(queryDTO.getAggs());
+		List<BaseAggregationBuilder> aggs = getAggs(queryDTO);
 
 		if (aggs != null) {
 			for (BaseAggregationBuilder term : aggs) {
@@ -576,6 +563,24 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		}
 
 		return searchSourceBuilder;
+	}
+
+	protected BoolQueryBuilder getQueryBuilder(TQueryDTO queryDTO, QueryBuilder serviceQuery) {
+
+		QueryBuilder termQuery = getTermQuery(queryDTO.getTerms());
+
+		BoolQueryBuilder partialQuery = null;
+		if (serviceQuery != null) {
+			partialQuery = QueryBuilders.boolQuery().must(serviceQuery);
+		}
+
+		if (termQuery != null && partialQuery != null) {
+			partialQuery.must(termQuery);
+		} else if (termQuery != null) {
+			partialQuery = QueryBuilders.boolQuery().must(termQuery);
+		}
+
+		return getQuery(queryDTO, getInternalQuery(), partialQuery);
 	}
 
 	private List<SortBuilder<?>> getSorts(List<SortDTO> sortDTOList) {
@@ -693,6 +698,10 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	 *            la query.
 	 * @return aggs de elastic.
 	 */
+
+	protected List<BaseAggregationBuilder> getAggs(TQueryDTO queryDTO) {
+		return getAggs(queryDTO.getAggs());
+	}
 
 	protected List<BaseAggregationBuilder> getAggs(List<AggsPropertiesDTO> aggs) {
 		return ElasticSearchUtils.getAggs(aggs);

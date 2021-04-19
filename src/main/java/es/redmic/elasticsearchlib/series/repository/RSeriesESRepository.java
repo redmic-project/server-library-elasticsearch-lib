@@ -16,6 +16,8 @@ import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 
+import es.redmic.elasticsearchlib.common.query.SeriesQueryUtils;
+
 /*-
  * #%L
  * elasticsearch-lib
@@ -36,7 +38,6 @@ import org.elasticsearch.search.sort.SortOrder;
  * #L%
  */
 
-import es.redmic.elasticsearchlib.common.query.SeriesQueryUtils;
 import es.redmic.elasticsearchlib.common.repository.RBaseESRepository;
 import es.redmic.exception.data.ItemNotFoundException;
 import es.redmic.models.es.common.model.BaseAbstractStringES;
@@ -109,12 +110,13 @@ public abstract class RSeriesESRepository<TModel extends BaseAbstractStringES, T
 				getSourceType(SeriesSearchWrapper.class));
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public SeriesSearchWrapper<TModel> find(DataQueryDTO queryDTO) {
 
 		QueryBuilder serviceQuery = SeriesQueryUtils.getQuery(queryDTO);
 
-		SearchResponse result = searchRequest(serviceQuery);
+		SearchResponse result = searchRequest((TQueryDTO) queryDTO, serviceQuery);
 
 		if (result.getFailedShards() > 0)
 			return null;
