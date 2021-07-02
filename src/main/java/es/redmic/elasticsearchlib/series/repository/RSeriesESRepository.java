@@ -118,9 +118,6 @@ public abstract class RSeriesESRepository<TModel extends BaseAbstractStringES, T
 
 		SearchResponse result = searchRequest((TQueryDTO) queryDTO, serviceQuery);
 
-		if (result.getFailedShards() > 0)
-			return null;
-
 		return searchResponseToWrapper(result, getSourceType(SeriesSearchWrapper.class));
 	}
 
