@@ -13,13 +13,13 @@
 	<groupId>es.redmic.lib</groupId>
 	<artifactId>elasticsearch-lib</artifactId>
 	<packaging>jar</packaging>
-	<version>0.13.0</version>
+	<version>0.14.0</version>
 	<name>elasticsearch-lib</name>
 
 	<properties>
 		<!-- REDMIC -->
 		<redmic.exceptions.version>0.10.0</redmic.exceptions.version>
-		<redmic.models.version>0.11.0</redmic.models.version>
+		<redmic.models.version>0.11.0-feature-cleanTimeSeries</redmic.models.version>
 
 		<!-- Others -->
 		<commons-io.version>1.3.2</commons-io.version>

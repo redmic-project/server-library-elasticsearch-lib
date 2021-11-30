@@ -9,9 +9,9 @@ package es.redmic.elasticsearchlib.common.utils;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -117,7 +117,7 @@ public class ElasticSearchUtils {
 
 	/**
 	 * Retorna solamente los campos de highlight
-	 * 
+	 *
 	 * @param response
 	 *            un SearchResponse que contenga hightlight
 	 * @return lista de sugerencias
@@ -168,8 +168,10 @@ public class ElasticSearchUtils {
 			response.innerToXContent(builder, ToXContentObject.EMPTY_PARAMS);
 			builder.endObject();
 
-			return jMapper.readValue(Strings.toString(builder), Map.class);
-
+			Map<String, Object> result = jMapper.readValue(Strings.toString(builder), Map.class);
+			// Elimina los fallos por tratarse de gran cantidad de datos que no interesan en el cliente.
+			((Map<String, Object>) result.get("_shards")).remove("failures");
+			return result;
 		} catch (IOException e) {
 			throw new ESParseException(e);
 		}
@@ -258,7 +260,7 @@ public class ElasticSearchUtils {
 
 	/**
 	 * Función para extraer las estadísticas del resultado de la agregación
-	 * 
+	 *
 	 * @param obj:
 	 *            Resultado de la agregación
 	 * @param key:
@@ -266,7 +268,7 @@ public class ElasticSearchUtils {
 	 *            primer nivel)
 	 * @param clazz:
 	 *            clase donde mapear los datos
-	 * 
+	 *
 	 * @return Objeto de tipo clazz con los datos de las estadísticas.
 	 */
 	public static Object getStatsFromAggregation(Map<String, Object> obj, String key, Class<?> clazz) {
@@ -304,7 +306,7 @@ public class ElasticSearchUtils {
 	/**
 	 * Añade a un listado de campos el sufijo .suggest que son los campos en
 	 * ElasticSearch donde se han mapeado las sugerencias
-	 * 
+	 *
 	 * @param fields
 	 *            Listado de campos donde se van a buscar sugerencias
 	 * @return Listado de campos modificados con sufijo suggest
