@@ -9,9 +9,9 @@ package es.redmic.elasticsearchlib.common.repository;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -98,7 +98,7 @@ import es.redmic.models.es.common.query.dto.SuggestQueryDTO;
 
 public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO extends SimpleQueryDTO> {
 
-	protected final static Logger LOGGER = LoggerFactory.getLogger(RBaseESRepository.class);
+	protected static final Logger LOGGER = LoggerFactory.getLogger(RBaseESRepository.class);
 
 	@Value("${redmic.elasticsearch.check.mappings}")
 	private boolean checkMappings;
@@ -125,16 +125,16 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	protected Class<TModel> typeOfTModel;
 
-	public RBaseESRepository() {
+	protected RBaseESRepository() {
 	}
 
-	public RBaseESRepository(String[] index, String type, Boolean rollOverIndex) {
+	protected RBaseESRepository(String[] index, String type, Boolean rollOverIndex) {
 		this(index, type);
 		ROLLOVER_INDEX = rollOverIndex;
 	}
 
 	@SuppressWarnings("unchecked")
-	public RBaseESRepository(String[] index, String type) {
+	protected RBaseESRepository(String[] index, String type) {
 		this.INDEX = index;
 		this.TYPE = type;
 
@@ -240,7 +240,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	 */
 	private void prepareIndex(String index) {
 
-		if (ROLLOVER_INDEX) {
+		if (Boolean.TRUE.equals(ROLLOVER_INDEX)) {
 			createTemplate(index);
 		} else {
 			createIndex(index);
@@ -313,7 +313,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	protected GetResponse getRequest(String id, String parentId) {
 
-		LOGGER.debug("FindById en " + getIndex() + " " + getType() + " con id " + id);
+		LOGGER.debug("FindById en {} {} con id {}", getIndex(), getType(), id);
 
 		for (int i = 0; i < getIndex().length; i++) {
 
@@ -364,8 +364,8 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			partialQuery = QueryBuilders.boolQuery().must(termQuery);
 		}
 
-		LOGGER.debug("Suggest en " + getIndex() + " " + getType() + " con fields " + fields + " y texto " + text
-				+ " y query interna " + partialQuery);
+		LOGGER.debug("Suggest en {} {} con fields {} y texto {} y query interna {}",
+			getIndex(), getType(), fields, text, partialQuery);
 
 		SearchRequest searchRequest = new SearchRequest(INDEX);
 
@@ -405,14 +405,13 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	protected MultiGetResponse multigetRequest(MgetDTO dto, String parentId) {
 
-		LOGGER.debug("Mget en " + getIndex() + " " + getType() + " con fields " + dto.getFields() + " e ids "
-				+ dto.getIds());
+		LOGGER.debug("Mget en {} {} con fields {} e ids {}", getIndex(), getType(), dto.getFields(), dto.getIds());
 
 		MultiGetRequest request = new MultiGetRequest();
 
 		FetchSourceContext fetchSourceContext;
 
-		if (dto.getFields() == null || dto.getFields().size() == 0) {
+		if (dto.getFields() == null || dto.getFields().isEmpty()) {
 			fetchSourceContext = new FetchSourceContext(true);
 		} else {
 			String[] fieldsArray = dto.getFields().toArray(new String[dto.getFields().size()]);
@@ -458,8 +457,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	protected SearchResponse searchRequest(QueryBuilder query, SortBuilder<?> sort, List<String> returnFields) {
 
-		LOGGER.debug("FindBy query en " + getIndex() + " " + getType() + " con query " + query.toString()
-				+ " y ordenación " /* + sort.toString() */);
+		LOGGER.debug("FindBy query en {} {} con query {} y ordenación.", getIndex(), getType(), query.toString() /* + sort.toString() */);
 
 		Integer size = getCount(QueryBuilders.boolQuery().filter(query));
 
@@ -468,7 +466,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(query).size(size).sort(sort);
 
-		if (returnFields != null && returnFields.size() > 0) {
+		if (returnFields != null && !returnFields.isEmpty()) {
 			searchSourceBuilder.fetchSource(ElasticSearchUtils.getReturnFields(returnFields), null);
 		}
 
@@ -492,8 +490,6 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	}
 
 	protected SearchResponse searchRequest(TQueryDTO queryDTO, QueryBuilder serviceQuery) {
-
-		LOGGER.debug("Find en " + getIndex() + " " + getType() + " con queryDTO " + queryDTO + " y query interna ");
 
 		SearchRequest searchRequest = new SearchRequest(getIndex());
 
@@ -520,24 +516,11 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	protected SearchSourceBuilder searchRequestBuilder(TQueryDTO queryDTO, QueryBuilder serviceQuery) {
 
-		LOGGER.debug("Find en " + getIndex() + " " + getType() + " con queryDTO " + queryDTO + " y query interna ");
-
-		QueryBuilder termQuery = getTermQuery(queryDTO.getTerms());
-
-		BoolQueryBuilder partialQuery = null;
-		if (serviceQuery != null) {
-			partialQuery = QueryBuilders.boolQuery().must(serviceQuery);
-		}
-
-		if (termQuery != null && partialQuery != null) {
-			partialQuery.must(termQuery);
-		} else if (termQuery != null) {
-			partialQuery = QueryBuilders.boolQuery().must(termQuery);
-		}
-
-		BoolQueryBuilder queryBuilder = getQuery(queryDTO, getInternalQuery(), partialQuery);
+		LOGGER.debug("Find en {} {} con queryDTO {} y query interna.", getIndex(), getType(), queryDTO);
 
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+		BoolQueryBuilder queryBuilder = getQueryBuilder(queryDTO, serviceQuery);
 
 		searchSourceBuilder.query(queryBuilder);
 
@@ -547,7 +530,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 			searchSourceBuilder.postFilter(postFilter);
 		}
 
-		List<BaseAggregationBuilder> aggs = getAggs(queryDTO.getAggs());
+		List<BaseAggregationBuilder> aggs = getAggs(queryDTO);
 
 		if (aggs != null) {
 			for (BaseAggregationBuilder term : aggs) {
@@ -569,17 +552,35 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 		List<SortBuilder<?>> sorts = getSorts(queryDTO.getSorts());
 		// Finalmente solo en caso de tener una ordenación se añade a la request
-		if (sorts != null && sorts.size() > 0) {
+		if (sorts != null && !sorts.isEmpty()) {
 			for (int i = 0; i < sorts.size(); i++)
 				searchSourceBuilder.sort(sorts.get(i));
 		}
 
 		List<String> returnFields = queryDTO.getReturnFields();
-		if (returnFields != null && returnFields.size() > 0) {
+		if (returnFields != null && !returnFields.isEmpty()) {
 			searchSourceBuilder.fetchSource(ElasticSearchUtils.getReturnFields(returnFields), null);
 		}
 
 		return searchSourceBuilder;
+	}
+
+	protected BoolQueryBuilder getQueryBuilder(TQueryDTO queryDTO, QueryBuilder serviceQuery) {
+
+		QueryBuilder termQuery = getTermQuery(queryDTO.getTerms());
+
+		BoolQueryBuilder partialQuery = null;
+		if (serviceQuery != null) {
+			partialQuery = QueryBuilders.boolQuery().must(serviceQuery);
+		}
+
+		if (termQuery != null && partialQuery != null) {
+			partialQuery.must(termQuery);
+		} else if (termQuery != null) {
+			partialQuery = QueryBuilders.boolQuery().must(termQuery);
+		}
+
+		return getQuery(queryDTO, getInternalQuery(), partialQuery);
 	}
 
 	private List<SortBuilder<?>> getSorts(List<SortDTO> sortDTOList) {
@@ -660,7 +661,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	/**
 	 * Función que sirve de wrapper a la llamada de la util para crear la query de
 	 * elastic.
-	 * 
+	 *
 	 * @param queryDTO
 	 *            Dto de la query enviada por el cliente.
 	 * @param internalQuery
@@ -679,7 +680,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	/**
 	 * Función que sirve de wrapper a la llamada de la util para crear el postfilter
 	 * de elastic
-	 * 
+	 *
 	 * @param postFilter
 	 *            información para crear el postfilter. Es enviada desde el cliente.
 	 * @return postFilter de elastic.
@@ -691,12 +692,16 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	/**
 	 * Función que sirve de wrapper a la llamada de la util para crear las
 	 * agregaciones.
-	 * 
+	 *
 	 * @param queryDTO
 	 *            Clase enviada desde el cliente con los datos necesarios para crear
 	 *            la query.
 	 * @return aggs de elastic.
 	 */
+
+	protected List<BaseAggregationBuilder> getAggs(TQueryDTO queryDTO) {
+		return getAggs(queryDTO.getAggs());
+	}
 
 	protected List<BaseAggregationBuilder> getAggs(List<AggsPropertiesDTO> aggs) {
 		return ElasticSearchUtils.getAggs(aggs);
@@ -705,7 +710,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	/**
 	 * Función que devuelve el número total de elementos que se dan como resultado
 	 * de aplicar todas las queries activas en el repo.
-	 * 
+	 *
 	 * @param queryBuilder
 	 *            Query completamente construida
 	 * @return total de hits.
@@ -739,13 +744,13 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	/**
 	 * Función que nos devuelve el size de la query. El size del exterior tiene
 	 * preferencia, en caso de no exista, se devuelve todo lo almacenado.
-	 * 
+	 *
 	 * @param queryDTO.
 	 *            queryDto para obtener parámetros de query enviados por el cliente
 	 * @param query.
 	 *            Query generada para en caso de que no se establezca size, calcular
 	 *            el máximo
-	 * 
+	 *
 	 * @return numero de elementos que devolverá la query
 	 */
 
@@ -763,7 +768,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	/**
 	 * Función que nos devuelve una lista de ordenaciones específica para
 	 * timeseries. Por defecto, ordena por id.
-	 * 
+	 *
 	 * @return lista de ordenaciones de elasticsearch
 	 */
 
@@ -779,7 +784,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	 * elasticsearch. Debe estar implementado en cada repositorio para darle una
 	 * funcionalidad específica y aquí estarán las funcionalidades que comparten
 	 * todos los repositorios.
-	 * 
+	 *
 	 * @param terms
 	 *            Map de términos pasados por la query.
 	 * @return query de tipo terms de elasticsearch.
@@ -794,7 +799,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	 * elasticsearch. Debe estar implementado en cada repositorio para darle una
 	 * funcionalidad específica y aquí estarán las funcionalidades que comparten
 	 * todos los repositorios.
-	 * 
+	 *
 	 * @param terms
 	 *            Map de términos pasados por la query.
 	 * @param query
@@ -821,7 +826,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	/**
 	 * Función que dado un id de selección devuelve todos los items seleccionados.
-	 * 
+	 *
 	 * @param selectionId
 	 *            identificador de la selección con la que se está trabajando.
 	 * @return Map de identificadores de items seleccionados.
@@ -831,7 +836,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 		/*
 		 * String selectionIndex = SelectionWorkRepository.INDEX[0]; String
 		 * selectionType = SelectionWorkRepository.TYPE[0];
-		 * 
+		 *
 		 * GetResponse result = ESProvider.getClient().prepareGet(selectionIndex,
 		 * selectionType, selectionId.toString()) .execute().actionGet(); if
 		 * (result.isExists()) return result.getSource();
@@ -841,7 +846,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 
 	/**
 	 * Función para setear una query que siempre se aplicará para el repositorio.
-	 * 
+	 *
 	 * @param internalQuery
 	 *            Query de tipo elasticSearch.
 	 */
@@ -853,7 +858,7 @@ public abstract class RBaseESRepository<TModel extends BaseES<?>, TQueryDTO exte
 	/**
 	 * Función para obtener la query de tipo elasticSearch que se debe aplicar
 	 * siempre.
-	 * 
+	 *
 	 * @return Query de tipo elasticSearch.
 	 */
 	protected QueryBuilder getInternalQuery() {
